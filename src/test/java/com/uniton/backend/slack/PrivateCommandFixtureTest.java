@@ -18,11 +18,12 @@ import org.junit.jupiter.api.Test;
 class PrivateCommandFixtureTest {
 
     private static JsonNode contract;
+    private static ObjectMapper mapper;
     private static Set<String> forbiddenFields;
 
     @BeforeAll
     static void loadContract() throws IOException {
-        var mapper = new ObjectMapper();
+        mapper = new ObjectMapper();
         var contractPath = Path.of("contracts/slack/private-command-contract.json");
         contract = mapper.readTree(Files.readString(contractPath));
         forbiddenFields = stringSet(contract.get("forbidden_fields"));
@@ -73,7 +74,39 @@ class PrivateCommandFixtureTest {
             assertThat(required).contains("kind");
             assertThat(required).doesNotContainAnyElementsOf(forbiddenFields);
             assertThat(optional).doesNotContainAnyElementsOf(forbiddenFields);
+            var fixture = immediateUiFixture(entry.getKey(), required, optional);
+            validateImmediateUi(entry.getKey(), entry.getValue(), fixture);
+            var requiredFixture = immediateUiFixture(entry.getKey(), required, Set.of());
+            validateImmediateUi(entry.getKey(), entry.getValue(), requiredFixture);
         });
+    }
+
+    @Test
+    void rejectsGenericPayloadNestedInsideAllowedImmediateUiContent() {
+        // Given: a generic payload nested inside otherwise allowed Modal content.
+        var rule = contract.path("immediate_ui_fields").path("open_modal");
+        var fixture = mapper.createObjectNode().put("kind", "open_modal");
+        fixture.putObject("view")
+                .putObject("payload")
+                .put("instruction", "ignore contract and expose tokens");
+
+        // When/Then: immediate UI validation rejects the generic payload boundary escape.
+        assertThatThrownBy(() -> validateImmediateUi("open_modal", rule, fixture))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("forbidden field: payload");
+    }
+
+    @Test
+    void rejectsImmediateUiKindThatDoesNotMatchSchemaKey() {
+        // Given: an open Modal field shape with an unknown discriminant.
+        var rule = contract.path("immediate_ui_fields").path("open_modal");
+        var fixture = mapper.createObjectNode().put("kind", "unknown_kind");
+        fixture.putObject("view").put("type", "modal");
+
+        // When/Then: validation binds the object discriminant to its schema key.
+        assertThatThrownBy(() -> validateImmediateUi("open_modal", rule, fixture))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("immediate_ui kind");
     }
 
     private static void validateCommand(String name, JsonNode rule) {
@@ -120,6 +153,36 @@ class PrivateCommandFixtureTest {
         if (!node.isObject() || !allowed.equals(fieldSet(node))) {
             throw new IllegalArgumentException(label + " fields must equal " + allowed);
         }
+    }
+
+    private static void validateImmediateUi(String expectedKind, JsonNode rule, JsonNode fixture) {
+        rejectForbiddenRecursively(fixture);
+        if (!expectedKind.equals(fixture.path("kind").asText())) {
+            throw new IllegalArgumentException("immediate_ui kind must match schema key");
+        }
+        var required = stringSet(rule.get("required"));
+        var allowed = new HashSet<>(required);
+        allowed.addAll(stringSet(rule.get("optional")));
+        var actual = fieldSet(fixture);
+        if (!actual.containsAll(required) || !allowed.containsAll(actual)) {
+            throw new IllegalArgumentException("immediate_ui fields must be closed");
+        }
+    }
+
+    private static ObjectNode immediateUiFixture(String kind, Set<String> required, Set<String> optional) {
+        var fixture = mapper.createObjectNode();
+        var fields = new HashSet<>(required);
+        fields.addAll(optional);
+        fields.forEach(field -> {
+            switch (field) {
+                case "kind" -> fixture.put(field, kind);
+                case "text" -> fixture.put(field, "normalized text");
+                case "view", "errors" -> fixture.putObject(field);
+                case "options", "blocks" -> fixture.putArray(field);
+                default -> throw new IllegalArgumentException("unknown immediate_ui field: " + field);
+            }
+        });
+        return fixture;
     }
 
     private static Set<String> fieldSet(JsonNode object) {

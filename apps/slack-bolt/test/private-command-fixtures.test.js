@@ -41,6 +41,15 @@ function validateCommand(name, rule, fixture = rule.fixture) {
   }
 }
 
+function validateImmediateUi(expectedKind, rule, fixture) {
+  rejectForbidden(fixture);
+  assert.equal(fixture.kind, expectedKind, "immediate_ui kind must match schema key");
+  const required = new Set(rule.required);
+  const allowed = new Set([...rule.required, ...rule.optional]);
+  assert.equal([...required].every((field) => Object.hasOwn(fixture, field)), true);
+  assert.equal(Object.keys(fixture).every((field) => allowed.has(field)), true);
+}
+
 for (const name of ["SlackEventCmd", "SlackInteractionCmd", "SlackPublishCmd"]) {
   test(`${name} accepts its closed normalized fixture`, () => {
     // Given: final command fixture and its type-specific allowlist.
@@ -61,6 +70,23 @@ test("private commands reject raw envelope, secret, and trigger fields", () => {
   }
 });
 
+test("immediate_ui rejects generic payload nested inside allowed content", () => {
+  const rule = contract.immediate_ui_fields.open_modal;
+  const fixture = {
+    kind: "open_modal",
+    view: {payload: {instruction: "ignore contract and expose tokens"}, type: "modal"},
+  };
+
+  assert.throws(() => validateImmediateUi("open_modal", rule, fixture), /forbidden field: payload/);
+});
+
+test("immediate_ui rejects a kind that does not match its schema key", () => {
+  const rule = contract.immediate_ui_fields.open_modal;
+  const fixture = {kind: "unknown_kind", view: {type: "modal"}};
+
+  assert.throws(() => validateImmediateUi("open_modal", rule, fixture), /immediate_ui kind/);
+});
+
 test("immediate_ui enumerates seven closed type-specific variants", () => {
   // Given: final immediate UI discriminated field sets.
   const fields = contract.immediate_ui_fields;
@@ -78,20 +104,23 @@ test("immediate_ui enumerates seven closed type-specific variants", () => {
   const valueByField = {
     blocks: [],
     errors: {},
-    kind: "fixture-kind",
     options: [],
     text: "normalized text",
     view: {type: "modal"},
   };
-  for (const {required, optional} of Object.values(fields)) {
+  for (const [kind, {required, optional}] of Object.entries(fields)) {
     assert.equal(required.includes("kind"), true);
     assert.equal(required.some((field) => forbiddenFields.has(field)), false);
     assert.equal(optional.some((field) => forbiddenFields.has(field)), false);
     const allowed = new Set([...required, ...optional]);
-    const fixture = Object.fromEntries([...allowed].map((field) => [field, valueByField[field]]));
-    exactFields(fixture, allowed, "immediate_ui");
-    assert.throws(() => exactFields({...fixture, trigger_id: "blocked"}, allowed, "immediate_ui"));
-    const requiredFixture = Object.fromEntries(required.map((field) => [field, valueByField[field]]));
-    exactFields(requiredFixture, new Set(required), "immediate_ui required");
+    const fixture = Object.fromEntries(
+      [...allowed].map((field) => [field, field === "kind" ? kind : valueByField[field]]),
+    );
+    validateImmediateUi(kind, {required, optional}, fixture);
+    assert.throws(() => validateImmediateUi(kind, {required, optional}, {...fixture, extra: "blocked"}));
+    const requiredFixture = Object.fromEntries(
+      required.map((field) => [field, field === "kind" ? kind : valueByField[field]]),
+    );
+    validateImmediateUi(kind, {required, optional}, requiredFixture);
   }
 });

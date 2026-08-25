@@ -9,6 +9,7 @@
     "app_token",
     "bot_token",
     "oauth_token",
+    "payload",
     "signature",
     "credential",
     "cookie",
