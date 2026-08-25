@@ -1,0 +1,36 @@
+name: Backend PR CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Run Java checks
+        run: ./gradlew check
+
+  bolt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/slack-bolt/package-lock.json
+      - name: Install Bolt dependencies
+        run: npm --prefix apps/slack-bolt ci
+      - name: Run Bolt tests
+        run: npm --prefix apps/slack-bolt test

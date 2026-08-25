@@ -1,0 +1,144 @@
+{
+  "forbidden_fields": [
+    "raw_event_payload",
+    "raw_event",
+    "raw_envelope",
+    "envelope",
+    "envelope_id",
+    "token",
+    "app_token",
+    "bot_token",
+    "oauth_token",
+    "payload",
+    "signature",
+    "credential",
+    "cookie",
+    "authorization",
+    "trigger_id"
+  ],
+  "commands": {
+    "SlackEventCmd": {
+      "common_fields": [
+        "request_id",
+        "provider_event_id",
+        "received_at",
+        "event_type",
+        "team_id",
+        "actor_slack_user_id"
+      ],
+      "type_field": "event_type",
+      "type_fields": {
+        "message": ["event_subtype", "location", "message"]
+      },
+      "objects": {
+        "location": ["channel_id", "thread_ts", "message_ts"],
+        "message": ["text"]
+      },
+      "fixture": {
+        "request_id": "req-ec-1",
+        "provider_event_id": "Ev08",
+        "received_at": "2026-08-26T03:00:00Z",
+        "event_type": "message",
+        "event_subtype": null,
+        "team_id": "T01",
+        "actor_slack_user_id": "U02",
+        "location": {
+          "channel_id": "C03",
+          "thread_ts": "1780000000.000001",
+          "message_ts": "1780000000.000100"
+        },
+        "message": {"text": "normalized message"}
+      }
+    },
+    "SlackInteractionCmd": {
+      "common_fields": [
+        "request_id",
+        "interaction_id",
+        "received_at",
+        "surface",
+        "team_id",
+        "actor_slack_user_id"
+      ],
+      "type_field": "surface",
+      "type_fields": {
+        "view_submission": ["callback_id", "context_ref", "location", "view_id", "submitted_values"],
+        "block_actions": ["action_id", "callback_id", "context_ref", "location"],
+        "block_suggestion": ["action_id", "callback_id", "context_ref"],
+        "slash_command": ["context_ref", "location", "command"]
+      },
+      "objects": {
+        "location": ["channel_id", "thread_ts", "message_ts"],
+        "command": ["name", "text"]
+      },
+      "fixture": {
+        "request_id": "req-ia-1",
+        "interaction_id": "I03",
+        "received_at": "2026-08-26T03:01:00Z",
+        "surface": "slash_command",
+        "team_id": "T01",
+        "actor_slack_user_id": "U02",
+        "context_ref": null,
+        "location": {
+          "channel_id": "C03",
+          "thread_ts": "1780000000.000001",
+          "message_ts": "1780000000.000100"
+        },
+        "command": {"name": "/project-start", "text": "Uniton demo"}
+      }
+    },
+    "SlackPublishCmd": {
+      "common_fields": [
+        "request_id",
+        "command_id",
+        "idempotency_key",
+        "operation",
+        "target",
+        "content",
+        "audit"
+      ],
+      "type_field": "operation",
+      "type_fields": {
+        "post_message": [],
+        "update_message": [],
+        "publish_home": [],
+        "ephemeral_response": []
+      },
+      "target_fields": {
+        "post_message": ["team_id", "channel_id", "thread_ts"],
+        "update_message": ["team_id", "channel_id", "message_ts"],
+        "publish_home": ["team_id", "user_id"],
+        "ephemeral_response": ["team_id", "channel_id", "user_id", "thread_ts"]
+      },
+      "objects": {
+        "content": ["text", "blocks"],
+        "audit": ["project_id", "conversation_thread_id", "source_command_id"]
+      },
+      "fixture": {
+        "request_id": "req-pc-1",
+        "command_id": "pc-17",
+        "idempotency_key": "publish:project:pr-44:status:v3",
+        "operation": "post_message",
+        "target": {
+          "team_id": "T01",
+          "channel_id": "C03",
+          "thread_ts": "1780000000.000001"
+        },
+        "content": {"text": "status changed", "blocks": []},
+        "audit": {
+          "project_id": "pr-44",
+          "conversation_thread_id": "ct-6b",
+          "source_command_id": "cmd-81"
+        }
+      }
+    }
+  },
+  "immediate_ui_fields": {
+    "none": {"required": ["kind"], "optional": []},
+    "open_modal": {"required": ["kind", "view"], "optional": []},
+    "update_modal": {"required": ["kind", "view"], "optional": []},
+    "push_modal": {"required": ["kind", "view"], "optional": []},
+    "modal_errors": {"required": ["kind", "errors"], "optional": []},
+    "options": {"required": ["kind", "options"], "optional": []},
+    "ephemeral": {"required": ["kind", "text"], "optional": ["blocks"]}
+  }
+}
