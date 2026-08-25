@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: uniton-backend
+
+uniton:
+  runtime:
+    api-enabled: false
+    worker-enabled: false

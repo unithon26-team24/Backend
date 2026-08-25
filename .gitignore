@@ -1,0 +1,4 @@
+.gradle/
+build/
+apps/slack-bolt/node_modules/
+npm-debug.log*
