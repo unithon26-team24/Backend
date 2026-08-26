@@ -118,7 +118,7 @@ if [ "${SLACK_APP_TOKEN+x}" = x ] ||
 fi
 
 java_executable=
-for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.*/*/x64/bin/java; do
+for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.*/x64/bin/java; do
   [ -x "$java_candidate" ] || continue
   case $java_candidate in
     /opt/hostedtoolcache/*)
