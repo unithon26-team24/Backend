@@ -73,6 +73,24 @@ class TemplateOwnerSelectionMigrationTest extends PostgresIntegrationSupport {
     }
 
     @Test
+    void rejectsMalformedTemplateWithoutPartialRevision() throws SQLException {
+        // Given
+        PlanDraftRevision valid = PlanDraftTestFixture.validRevision(context);
+        var source = valid.actionTemplates().getFirst();
+        var malformed = new PlanDraftRevision.ActionTemplate(
+                source.id(), source.clientKey(), source.milestoneId(), source.title(), source.description(),
+                source.candidateMemberId(), null, source.definitionOfDone(), source.requiredLabels(),
+                source.shortRationale());
+        PlanDraftRevision revision = PlanDraftTestFixture.withTemplates(
+                valid, List.of(malformed), valid.templateAssignments());
+
+        // When / Then
+        assertThatThrownBy(() -> repository.createRevision(revision))
+                .isInstanceOf(NullPointerException.class);
+        assertThat(revisionCount()).isZero();
+    }
+
+    @Test
     void rejectsMissingDuplicateAndUnknownTemplateKeysAtomically() throws SQLException {
         // Given
         PlanDraftRevision missingBase = PlanDraftTestFixture.validRevision(context);
