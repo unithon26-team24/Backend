@@ -44,19 +44,25 @@ done
 [ "$fixture_supplied" = false ] || [ ! -L "$fixture" ] || fail fixture_must_be_regular
 
 platform=$(uname -s)
-if [ "$fixture_supplied" = true ]; then
-  case $platform in
-    Darwin)
+case $platform in
+  Darwin)
+    path_type=$(stat -f '%HT' "$fixture") || fail fixture_metadata_unavailable
+    [ "$path_type" = 'Regular File' ] || fail fixture_must_be_regular
+    if [ "$fixture_supplied" = true ]; then
       fixture_mode_before=$(stat -f '%Lp' "$fixture") || fail fixture_metadata_unavailable
       path_identity_before=$(stat -f '%d:%i' "$fixture") || fail fixture_metadata_unavailable
-      ;;
-    Linux)
-      fixture_mode_before=$(stat -Lc '%a' "$fixture") || fail fixture_metadata_unavailable
-      path_identity_before=$(stat -Lc '%d:%i' "$fixture") || fail fixture_metadata_unavailable
-      ;;
-    *) fail platform_unsupported ;;
-  esac
-fi
+    fi
+    ;;
+  Linux)
+    path_type=$(stat -c '%F' "$fixture") || fail fixture_metadata_unavailable
+    [ "$path_type" = 'regular file' ] || fail fixture_must_be_regular
+    if [ "$fixture_supplied" = true ]; then
+      fixture_mode_before=$(stat -c '%a' "$fixture") || fail fixture_metadata_unavailable
+      path_identity_before=$(stat -c '%d:%i' "$fixture") || fail fixture_metadata_unavailable
+    fi
+    ;;
+  *) fail platform_unsupported ;;
+esac
 
 exec 3<"$fixture" || fail fixture_unreadable
 case $platform in
@@ -111,15 +117,23 @@ if [ "${SLACK_APP_TOKEN+x}" = x ] ||
   fail credential_environment_rejected
 fi
 
-java_executable=java
-if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
-  java_executable="$JAVA_HOME/bin/java"
-fi
-java_line=$("$java_executable" -version 2>&1 | sed -n '1p') || fail java_21_required
-case $java_line in
-  *'version "21.'*) ;;
-  *) fail java_21_required ;;
-esac
+java_executable=
+for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/21.*/*/x64/bin/java; do
+  [ -x "$java_candidate" ] || continue
+  case $java_candidate in
+    /opt/hostedtoolcache/*)
+      [ -f "$java_candidate" ] && [ ! -L "$java_candidate" ] || continue
+      [ "$(stat -c '%u' "$java_candidate")" = 0 ] || continue
+      java_mode=$(stat -c '%a' "$java_candidate") || continue
+      [ $((8#$java_mode & 0022)) -eq 0 ] || continue
+      ;;
+  esac
+  java_line=$("$java_candidate" -version 2>&1 | sed -n '1p') || continue
+  case $java_line in
+    *'version "21.'*) java_executable=$java_candidate; break ;;
+  esac
+done
+[ -n "$java_executable" ] || fail java_21_required
 docker compose version >/dev/null 2>&1 || fail docker_compose_required
 
 seen='|'

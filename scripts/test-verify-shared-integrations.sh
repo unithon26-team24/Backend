@@ -147,14 +147,46 @@ printf 'PASS hostile PATH status=1 actual-mode=enforced redacted=yes\n'
 
 ci_java_home="$tmp_dir/ci-java-home"
 mkdir "$ci_java_home" "$ci_java_home/bin"
-printf '%s\n' '#!/bin/sh' 'unset JAVA_HOME' 'exec "$UNITON_REAL_JAVA" "$@"' >"$ci_java_home/bin/java"
+hostile_java_marker="$tmp_dir/hostile-java-executed"
+printf '%s\n' '#!/bin/sh' ': >"$UNITON_HOSTILE_JAVA_MARKER"' 'printf '\''openjdk version "21.0.0"\\n'\'' >&2' >"$ci_java_home/bin/java"
 chmod 0700 "$ci_java_home/bin/java"
-UNITON_REAL_JAVA="$(command -v java)" JAVA_HOME="$ci_java_home" PATH="$hostile_bin:$PATH" \
+set +e
+UNITON_HOSTILE_JAVA_MARKER="$hostile_java_marker" JAVA_HOME="$ci_java_home" PATH="$hostile_bin:$PATH" \
   env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
   "$verifier" --local-contract --redacted --fixture "$private_0400_fixture" >"$tmp_dir/ci-java-home.log" 2>&1
+hostile_java_status=$?
+set -e
+if [ "$hostile_java_status" -ne 0 ] || [ -e "$hostile_java_marker" ]; then
+  printf 'FAIL hostile JAVA_HOME: wrapper executed or trusted Java unavailable\n' >&2
+  exit 1
+fi
 grep -q '^JAVA_21=VERIFIED$' "$tmp_dir/ci-java-home.log"
 grep -q '^RESULT=PASS$' "$tmp_dir/ci-java-home.log"
-printf 'PASS CI JAVA_HOME status=0 sanitized-path=yes\n'
+printf 'PASS hostile JAVA_HOME status=0 wrapper-executed=no\n'
+
+fifo_fixture="$tmp_dir/non-regular.fifo"
+fifo_output="$tmp_dir/fifo.log"
+mkfifo "$fifo_fixture"
+chmod 0600 "$fifo_fixture"
+set +e
+env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$fifo_fixture" >"$fifo_output" 2>&1 &
+fifo_pid=$!
+(sleep 0.1; kill -TERM "$fifo_pid" 2>/dev/null) &
+fifo_watchdog_pid=$!
+qa_pids="$fifo_pid $fifo_watchdog_pid"
+wait "$fifo_pid"
+fifo_status=$?
+kill "$fifo_watchdog_pid" 2>/dev/null
+wait "$fifo_watchdog_pid" 2>/dev/null
+set -e
+qa_pids=
+if [ "$fifo_status" -ne 1 ]; then
+  printf 'FAIL FIFO fixture: expected prompt status 1, got %s\n' "$fifo_status" >&2
+  exit 1
+fi
+grep -q '^ERROR=fixture_must_be_regular$' "$fifo_output"
+printf 'PASS FIFO fixture status=1 prompt=yes redacted=yes\n'
 
 non_regular_output="$tmp_dir/non-regular.log"
 set +e
