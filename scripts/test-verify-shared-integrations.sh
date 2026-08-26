@@ -104,6 +104,47 @@ expect_open_permissions_rejected() {
 expect_open_permissions_rejected 0644
 expect_open_permissions_rejected 0666
 
+private_0400_fixture="$tmp_dir/private-0400.fixture"
+cp "$fixtures/valid.fixture" "$private_0400_fixture"
+chmod 0400 "$private_0400_fixture"
+env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$private_0400_fixture" >"$tmp_dir/private-0400.log" 2>&1
+grep -q '^RESULT=PASS$' "$tmp_dir/private-0400.log"
+printf 'PASS private fixture mode=0400 status=0 redacted=yes\n'
+
+symlink_fixture="$tmp_dir/symlink.fixture"
+ln -s "$private_0400_fixture" "$symlink_fixture"
+set +e
+env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$symlink_fixture" >"$tmp_dir/symlink.log" 2>&1
+symlink_status=$?
+set -e
+[ "$symlink_status" -eq 1 ]
+grep -q '^ERROR=fixture_must_be_regular$' "$tmp_dir/symlink.log"
+printf 'PASS symlink fixture status=1 redacted=yes\n'
+
+hostile_fixture="$tmp_dir/hostile-path.fixture"
+hostile_bin="$tmp_dir/hostile-bin"
+hostile_output="$tmp_dir/hostile-path.log"
+mkdir "$hostile_bin"
+cp "$fixtures/valid.fixture" "$hostile_fixture"
+chmod 0644 "$hostile_fixture"
+printf '%s\n' '#!/bin/sh' "printf '600\\n'" >"$hostile_bin/stat"
+chmod 0700 "$hostile_bin/stat"
+set +e
+PATH="$hostile_bin:$PATH" env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$hostile_fixture" >"$hostile_output" 2>&1
+hostile_status=$?
+set -e
+if [ "$hostile_status" -ne 1 ] ||
+  ! grep -q '^RESULT=FAIL$' "$hostile_output" ||
+  ! grep -q '^ERROR=fixture_permissions_too_open$' "$hostile_output" ||
+  grep -q '^RESULT=PASS$' "$hostile_output"; then
+  printf 'FAIL hostile PATH: expected actual-mode rejection, got status %s\n' "$hostile_status" >&2
+  exit 1
+fi
+printf 'PASS hostile PATH status=1 actual-mode=enforced redacted=yes\n'
+
 non_regular_output="$tmp_dir/non-regular.log"
 set +e
 env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin
+export PATH
+TMPDIR=/tmp
+export TMPDIR
+unset -f dirname uname stat mktemp dd wc awk sed tr java docker rm 2>/dev/null || true
+
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 mode=
 redacted=false
@@ -35,17 +41,55 @@ done
 [ -n "$mode" ] || fail invalid_arguments
 [ "$redacted" = true ] || fail redaction_required
 [ -r "$fixture" ] || fail fixture_unreadable
-[ -f "$fixture" ] || fail fixture_must_be_regular
+[ "$fixture_supplied" = false ] || [ ! -L "$fixture" ] || fail fixture_must_be_regular
+
+platform=$(uname -s)
+if [ "$fixture_supplied" = true ]; then
+  case $platform in
+    Darwin)
+      fixture_mode_before=$(stat -f '%Lp' "$fixture") || fail fixture_metadata_unavailable
+      path_identity_before=$(stat -f '%d:%i' "$fixture") || fail fixture_metadata_unavailable
+      ;;
+    Linux)
+      fixture_mode_before=$(stat -Lc '%a' "$fixture") || fail fixture_metadata_unavailable
+      path_identity_before=$(stat -Lc '%d:%i' "$fixture") || fail fixture_metadata_unavailable
+      ;;
+    *) fail platform_unsupported ;;
+  esac
+fi
+
+exec 3<"$fixture" || fail fixture_unreadable
+case $platform in
+  Darwin)
+    descriptor_path=/dev/fd/3
+    descriptor_type=$(stat -f '%HT' "$descriptor_path") || fail fixture_metadata_unavailable
+    [ "$descriptor_type" = 'Regular File' ] || fail fixture_must_be_regular
+    if [ "$fixture_supplied" = true ]; then
+      fixture_mode_after=$(stat -f '%Lp' "$fixture") || fail fixture_metadata_unavailable
+      path_identity_after=$(stat -f '%d:%i' "$fixture") || fail fixture_metadata_unavailable
+    fi
+    ;;
+  Linux)
+    descriptor_path=/proc/self/fd/3
+    descriptor_type=$(stat -Lc '%F' "$descriptor_path") || fail fixture_metadata_unavailable
+    [ "$descriptor_type" = 'regular file' ] || fail fixture_must_be_regular
+    if [ "$fixture_supplied" = true ]; then
+      fixture_mode_after=$(stat -Lc '%a' "$fixture") || fail fixture_metadata_unavailable
+      path_identity_after=$(stat -Lc '%d:%i' "$fixture") || fail fixture_metadata_unavailable
+      descriptor_identity=$(stat -Lc '%d:%i' "$descriptor_path") || fail fixture_metadata_unavailable
+    fi
+    ;;
+  *) fail platform_unsupported ;;
+esac
+
 if [ "$fixture_supplied" = true ]; then
   [ ! -L "$fixture" ] || fail fixture_must_be_regular
-  if fixture_mode=$(stat -f '%Lp' "$fixture" 2>/dev/null); then
-    :
-  elif fixture_mode=$(stat -c '%a' "$fixture" 2>/dev/null); then
-    :
-  else
-    fail fixture_metadata_unavailable
+  [ "$path_identity_before" = "$path_identity_after" ] || fail fixture_changed_during_validation
+  [ "$fixture_mode_before" = "$fixture_mode_after" ] || fail fixture_changed_during_validation
+  if [ "$platform" = Linux ]; then
+    [ "$path_identity_after" = "$descriptor_identity" ] || fail fixture_changed_during_validation
   fi
-  case $fixture_mode in
+  case $fixture_mode_after in
     400|600) ;;
     *) fail fixture_permissions_too_open ;;
   esac
@@ -53,7 +97,8 @@ fi
 
 fixture_snapshot=$(mktemp "${TMPDIR:-/tmp}/uniton-preflight-fixture.XXXXXX") || fail fixture_snapshot_failed
 trap 'rm -f "$fixture_snapshot"' EXIT HUP INT TERM
-dd if="$fixture" of="$fixture_snapshot" bs=8193 count=1 2>/dev/null || fail fixture_snapshot_failed
+dd of="$fixture_snapshot" bs=8193 count=1 <&3 2>/dev/null || fail fixture_snapshot_failed
+exec 3<&-
 fixture_bytes=$(wc -c <"$fixture_snapshot")
 [ "$fixture_bytes" -le 8192 ] || fail fixture_limits_exceeded
 LC_ALL=C awk 'length($0) > 512 || NR > 32 { exit 1 }' "$fixture_snapshot" || fail fixture_limits_exceeded
