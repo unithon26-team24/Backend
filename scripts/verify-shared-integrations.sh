@@ -122,13 +122,13 @@ for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jd
   [ -x "$java_candidate" ] || continue
   case $java_candidate in
     /opt/hostedtoolcache/*)
-      [ -f "$java_candidate" ] && [ ! -L "$java_candidate" ] || continue
-      java_toolcache_root=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk
-      [ -d "$java_toolcache_root" ] || continue
-      [ "$(stat -c '%u' "$java_toolcache_root")" = 0 ] || continue
-      java_toolcache_mode=$(stat -c '%a' "$java_toolcache_root") || continue
-      [ $((8#$java_toolcache_mode & 0002)) -eq 0 ] || continue
-      java_mode=$(stat -c '%a' "$java_candidate") || continue
+      [ -f "$java_candidate" ] || continue
+      java_toolchain_root=${java_candidate%/bin/java}
+      [ -d "$java_toolchain_root" ] || continue
+      [ "$(stat -Lc '%u' "$java_candidate")" = "$(stat -c '%u' "$java_toolchain_root")" ] || continue
+      java_toolchain_mode=$(stat -c '%a' "$java_toolchain_root") || continue
+      [ $((8#$java_toolchain_mode & 0022)) -eq 0 ] || continue
+      java_mode=$(stat -Lc '%a' "$java_candidate") || continue
       [ $((8#$java_mode & 0022)) -eq 0 ] || continue
       ;;
   esac
