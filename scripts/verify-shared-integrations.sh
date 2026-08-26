@@ -123,11 +123,6 @@ for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jd
   case $java_candidate in
     /opt/hostedtoolcache/*)
       [ -f "$java_candidate" ] || continue
-      java_version_root=${java_candidate%/x64/bin/java}
-      [ -d "$java_version_root" ] && [ ! -L "$java_version_root" ] || continue
-      [ "$(stat -c '%u' "$java_version_root")" = 0 ] || continue
-      java_version_mode=$(stat -c '%a' "$java_version_root") || continue
-      [ $((8#$java_version_mode & 0022)) -eq 0 ] || continue
       ;;
   esac
   java_line=$("$java_candidate" -version 2>&1 | sed -n '1p') || continue

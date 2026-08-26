@@ -17,10 +17,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Inspect Java version root
-        run: |
-          version_root="${JAVA_HOME%/x64}"
-          stat -c 'version uid=%u mode=%a type=%F' "$version_root"
       - name: Run shared integration preflight contract tests
         run: bash ./scripts/test-verify-shared-integrations.sh
 
