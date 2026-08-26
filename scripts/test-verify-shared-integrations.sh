@@ -145,6 +145,42 @@ if [ "$hostile_status" -ne 1 ] ||
 fi
 printf 'PASS hostile PATH status=1 actual-mode=enforced redacted=yes\n'
 
+hostile_bash_marker="$tmp_dir/hostile-bash-executed"
+printf '%s\n' '#!/bin/sh' ': >"$UNITON_HOSTILE_BASH_MARKER"' 'exec /bin/bash "$@"' >"$hostile_bin/bash"
+chmod 0700 "$hostile_bin/bash"
+set +e
+UNITON_HOSTILE_BASH_MARKER="$hostile_bash_marker" PATH="$hostile_bin:$PATH" \
+  env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$private_0400_fixture" >"$tmp_dir/hostile-interpreter.log" 2>&1
+hostile_interpreter_status=$?
+set -e
+if [ "$hostile_interpreter_status" -ne 0 ] || [ -e "$hostile_bash_marker" ]; then
+  printf 'FAIL hostile interpreter PATH: caller bash executed or verifier failed\n' >&2
+  exit 1
+fi
+printf 'PASS hostile interpreter PATH status=0 caller-bash-executed=no\n'
+unlink "$hostile_bin/bash"
+
+bash_env_sentinel=uniton-redaction-sentinel
+bash_env_fixture="$tmp_dir/$bash_env_sentinel.fixture"
+bash_env_output="$tmp_dir/bash-env.log"
+bash_env_startup="$tmp_dir/bash-env-startup"
+cp "$fixtures/valid.fixture" "$bash_env_fixture"
+chmod 0600 "$bash_env_fixture"
+printf '%s\n' 'set -x' >"$bash_env_startup"
+set +e
+BASH_ENV="$bash_env_startup" BASH_XTRACEFD=2 \
+  env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  "$verifier" --local-contract --redacted --fixture "$bash_env_fixture" >"$bash_env_output" 2>&1
+bash_env_status=$?
+set -e
+if [ "$bash_env_status" -ne 0 ] || grep -q "$bash_env_sentinel" "$bash_env_output"; then
+  printf 'FAIL inherited BASH_ENV: status=%s sentinel leaked\n' "$bash_env_status" >&2
+  exit 1
+fi
+grep -q '^RESULT=PASS$' "$bash_env_output"
+printf 'PASS inherited BASH_ENV status=0 sentinel-count=0 redacted=yes\n'
+
 ci_java_home="$tmp_dir/ci-java-home"
 mkdir "$ci_java_home" "$ci_java_home/bin"
 hostile_java_marker="$tmp_dir/hostile-java-executed"

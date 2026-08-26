@@ -1,4 +1,17 @@
-#!/usr/bin/env bash
+#!/bin/sh
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin
+export PATH
+unset BASH_ENV BASH_XTRACEFD ENV
+
+launcher_pid=$$
+if [ "${UNITON_PREFLIGHT_BASH_PID:-}" != "$launcher_pid" ]; then
+  UNITON_PREFLIGHT_BASH_PID=$launcher_pid
+  export UNITON_PREFLIGHT_BASH_PID
+  exec /bin/bash "$0" "$@"
+fi
+unset UNITON_PREFLIGHT_BASH_PID launcher_pid
+
 set -euo pipefail
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin
