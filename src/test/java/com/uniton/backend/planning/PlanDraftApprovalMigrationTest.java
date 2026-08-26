@@ -6,7 +6,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.uniton.backend.persistence.PostgresIntegrationSupport;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -90,6 +93,24 @@ class PlanDraftApprovalMigrationTest extends PostgresIntegrationSupport {
         assertThat(approvalCount()).isEqualTo(1);
     }
 
+    @Test
+    void concurrentDuplicateScopeProducesOneDurableApproval() throws Exception {
+        // Given
+        CountDownLatch start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> submitAfter(start));
+            var second = executor.submit(() -> submitAfter(start));
+
+            // When
+            start.countDown();
+
+            // Then
+            assertThat(List.of(first.get(), second.get())).containsExactlyInAnyOrder(true, false);
+        }
+        assertThat(approvalCount()).isEqualTo(1);
+        System.out.println("DATA_SURFACE concurrent_approval_writers=2 durable_scope_records=1");
+    }
+
     private PlanDraftApprovalRepository.Approval approval(
             String scope, UUID partId, UUID actorId, PlanDraftRevision target) {
         return new PlanDraftApprovalRepository.Approval(
@@ -102,6 +123,17 @@ class PlanDraftApprovalMigrationTest extends PostgresIntegrationSupport {
                 var rows = statement.executeQuery("SELECT count(*) FROM plan_draft_approvals")) {
             rows.next();
             return rows.getInt(1);
+        }
+    }
+
+    private boolean submitAfter(CountDownLatch start) throws InterruptedException {
+        start.await();
+        try (Connection contender = connection()) {
+            new PlanDraftApprovalRepository(contender).submit(
+                    approval("project", null, context.ownerId(), revision));
+            return true;
+        } catch (SQLException expectedConstraintFailure) {
+            return false;
         }
     }
 }
