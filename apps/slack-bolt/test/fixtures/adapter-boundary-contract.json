@@ -1,0 +1,53 @@
+{
+  "event": {
+    "request_id": "request-event-1",
+    "provider_event_id": "event-1",
+    "received_at": "2026-08-26T03:00:00Z",
+    "event_type": "message",
+    "event_subtype": null,
+    "team_id": "team-1",
+    "actor_slack_user_id": "user-1",
+    "location": {
+      "channel_id": "channel-1",
+      "thread_ts": "1780000000.000001",
+      "message_ts": "1780000000.000100"
+    },
+    "message": {"text": "normalized message"}
+  },
+  "interaction": {
+    "request_id": "request-interaction-1",
+    "interaction_id": "interaction-1",
+    "received_at": "2026-08-26T03:01:00Z",
+    "surface": "slash_command",
+    "team_id": "team-1",
+    "actor_slack_user_id": "user-1",
+    "context_ref": null,
+    "location": {
+      "channel_id": "channel-1",
+      "thread_ts": "1780000000.000001",
+      "message_ts": "1780000000.000100"
+    },
+    "command": {"name": "/project-start", "text": "normalized command"}
+  },
+  "immediate_ui": {
+    "kind": "open_modal",
+    "view": {"type": "modal", "callback_id": "review-plan"}
+  },
+  "publish_result": {
+    "request_id": "request-publish-1",
+    "command_id": "command-1",
+    "idempotency_key": "publish-project-1-status-1",
+    "operation": "post_message",
+    "result": {"channel_id": "channel-1", "message_ts": "1780000000.000001"}
+  },
+  "rejected_requests": [
+    {"path": "/v1/slack/events", "valid_private_identity": false, "body_fixture": "event"},
+    {"path": "/internal/slack/events", "valid_private_identity": false, "body_fixture": "event"},
+    {"path": "/internal/slack/interactions", "valid_private_identity": false, "body_fixture": "interaction"}
+  ],
+  "valid_private_request": {
+    "path": "/internal/slack/events",
+    "valid_private_identity": true,
+    "body_fixture": "event"
+  }
+}

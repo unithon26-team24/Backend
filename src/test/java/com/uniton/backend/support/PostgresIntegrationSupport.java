@@ -1,4 +1,4 @@
-package com.uniton.backend.persistence;
+package com.uniton.backend.support;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
