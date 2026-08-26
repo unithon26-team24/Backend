@@ -18,7 +18,12 @@ public final class ProjectRepository {
 
     public void createProject(ProjectSetup setup) throws SQLException {
         boolean autoCommit = connection.getAutoCommit();
-        connection.setAutoCommit(false);
+        Savepoint savepoint = null;
+        if (autoCommit) {
+            connection.setAutoCommit(false);
+        } else {
+            savepoint = connection.setSavepoint();
+        }
         try {
             try (var project = connection.prepareStatement("""
                     INSERT INTO projects
@@ -41,12 +46,22 @@ public final class ProjectRepository {
                 settings.executeUpdate();
             }
             appendAudit(setup.id(), setup.ownerId(), "project_created", "project", setup.id());
-            connection.commit();
+            if (autoCommit) {
+                connection.commit();
+            } else {
+                connection.releaseSavepoint(savepoint);
+            }
         } catch (SQLException exception) {
-            connection.rollback();
+            if (autoCommit) {
+                connection.rollback();
+            } else {
+                connection.rollback(savepoint);
+            }
             throw exception;
         } finally {
-            connection.setAutoCommit(autoCommit);
+            if (autoCommit) {
+                connection.setAutoCommit(true);
+            }
         }
     }
 

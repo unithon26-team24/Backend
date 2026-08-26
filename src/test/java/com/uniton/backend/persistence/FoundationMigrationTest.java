@@ -125,18 +125,18 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
     }
 
     @Test
-    void acceptsThreeBoundedResponsibilityLabels() throws SQLException {
+    void acceptsThreeLabelsIncludingExactUnicodeLengthBound() throws SQLException {
         // Given
         UUID projectId = UUID.randomUUID();
 
         // When
         repository.createProject(new ProjectRepository.ProjectSetup(
                 projectId, "Valid", "Goal", Instant.now(), "Asia/Seoul", UUID.randomUUID(),
-                "U1", "Owner", List.of("기획", "운영", "의사결정")));
+                "U1", "Owner", List.of("가".repeat(48), "운영", "의사결정")));
 
         // Then
-        assertThat(responsibilityLabelCount(projectId)).isEqualTo(3);
-        System.out.println("DATA_SURFACE valid_responsibility_labels=3 accepted=true");
+        assertThat(hasThreeLabelsAtInclusiveLengthBound(projectId)).isTrue();
+        System.out.println("DATA_SURFACE valid_responsibility_labels=3 unicode_label_length=48 accepted=true");
     }
 
     @Test
@@ -194,6 +194,34 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
         System.out.println("DATA_SURFACE sole_owner_demotion=rejected sole_owner_delete=rejected owners=1");
     }
 
+    @Test
+    void failedProjectCreationPreservesCallerTransaction() throws SQLException {
+        // Given
+        UUID projectId = UUID.randomUUID();
+        repository.createProject(new ProjectRepository.ProjectSetup(
+                projectId, "Existing", "Goal", Instant.now(), "UTC", UUID.randomUUID(),
+                "U1", "Owner", List.of("기획")));
+
+        // When
+        try (Connection connection = connection()) {
+            connection.setAutoCommit(false);
+            ProjectRepository transactionalRepository = new ProjectRepository(connection);
+            transactionalRepository.selectSharedReference(
+                    projectId, "slack", "slack_channel", "C-CALLER-WORK");
+            ProjectRepository.ProjectSetup invalid = new ProjectRepository.ProjectSetup(
+                    UUID.randomUUID(), "Invalid", "Goal", Instant.now(), "KST", UUID.randomUUID(),
+                    "U2", "Owner", List.of("기획"));
+            assertThatThrownBy(() -> transactionalRepository.createProject(invalid))
+                    .isInstanceOf(SQLException.class);
+            assertThat(connection.getAutoCommit()).isFalse();
+            connection.commit();
+        }
+
+        // Then
+        assertThat(sharedReferenceCount(projectId)).isEqualTo(1);
+        System.out.println("DATA_SURFACE failed_project_creation caller_rows=1 outer_commit=preserved");
+    }
+
     private int projectCount() throws SQLException {
         try (Connection connection = connection();
                 var statement = connection.createStatement();
@@ -243,13 +271,26 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
         }
     }
 
-    private int responsibilityLabelCount(UUID projectId) throws SQLException {
+    private boolean hasThreeLabelsAtInclusiveLengthBound(UUID projectId) throws SQLException {
         try (Connection connection = connection();
                 var statement = connection.prepareStatement("""
-                        SELECT cardinality(responsibility_labels)
+                        SELECT cardinality(responsibility_labels) = 3
+                               AND char_length(responsibility_labels[1]) = 48
                         FROM project_members
                         WHERE project_id = ? AND member_role = 'owner'
                         """)) {
+            statement.setObject(1, projectId);
+            try (var rows = statement.executeQuery()) {
+                rows.next();
+                return rows.getBoolean(1);
+            }
+        }
+    }
+
+    private int sharedReferenceCount(UUID projectId) throws SQLException {
+        try (Connection connection = connection();
+                var statement = connection.prepareStatement(
+                        "SELECT count(*) FROM project_resource_references WHERE project_id = ?")) {
             statement.setObject(1, projectId);
             try (var rows = statement.executeQuery()) {
                 rows.next();
@@ -259,9 +300,6 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
     }
 
     private static Stream<List<String>> responsibilityLabelsOutsideFrozenBounds() {
-        return Stream.of(
-                List.of(),
-                List.of("a", "b", "c", "d"),
-                List.of("가".repeat(49)));
+        return Stream.of(List.of(), List.of("a", "b", "c", "d"), List.of("가".repeat(49)));
     }
 }
