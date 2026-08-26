@@ -1,22 +1,31 @@
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import test from "node:test";
-import {invokeRecordedRequest, serializeDurableFixture} from "../test-support/recorded-private-boundary.js";
+import {
+  SpringFakeBoundary,
+  createRecordedPrivateBoundary,
+} from "../test-support/recorded-private-boundary.js";
 
 const fixtureUrl = new URL("./fixtures/adapter-boundary-contract.json", import.meta.url);
 const fixtures = JSON.parse(await readFile(fixtureUrl, "utf8"));
+const canonicalContractUrl = new URL("../../../contracts/slack/private-command-contract.json", import.meta.url);
+const canonicalContract = JSON.parse(await readFile(canonicalContractUrl, "utf8"));
+const recordedBoundary = createRecordedPrivateBoundary(canonicalContract);
 
 test("recorded boundary accepts normalized event interaction immediate-ui and publish-result schemas", () => {
   // Given
-  const cases = [fixtures.event, fixtures.interaction, fixtures.immediate_ui, fixtures.publish_result];
-
   // When
-  const serialized = cases.map((fixture) => serializeDurableFixture(fixture));
+  const serialized = [
+    recordedBoundary.serializeCommand("SlackEventCmd", fixtures.event),
+    recordedBoundary.serializeCommand("SlackInteractionCmd", fixtures.interaction),
+    recordedBoundary.serializeImmediateUi(fixtures.immediate_ui),
+    recordedBoundary.serializePublishResult(fixtures.publish_result),
+  ];
 
   // Then
   assert.equal(serialized.length, 4);
   assert.equal(serialized.every((value) => !value.includes("trigger_id")), true);
-  assert.doesNotThrow(() => serializeDurableFixture({kind: "ephemeral", text: "normalized text"}));
+  assert.doesNotThrow(() => recordedBoundary.serializeImmediateUi({kind: "ephemeral", text: "normalized text"}));
 });
 
 test("durable fixture rejects trigger_id as a private command field at every depth", () => {
@@ -28,7 +37,21 @@ test("durable fixture rejects trigger_id as a private command field at every dep
 
   // When / Then
   hostileFixtures.forEach((fixture) => {
-    assert.throws(() => serializeDurableFixture(fixture), /trigger_id/);
+    assert.throws(() => recordedBoundary.serializePublishResult(fixture), /trigger_id/);
+  });
+});
+
+test("every canonical forbidden field is rejected inside allowed immediate-ui content", () => {
+  // Given
+  const hostileFixtures = canonicalContract.forbidden_fields.map((field) => ({
+    kind: "ephemeral",
+    text: "normalized text",
+    blocks: [{type: "section", [field]: "hostile-value"}],
+  }));
+
+  // When / Then
+  hostileFixtures.forEach((fixture) => {
+    assert.throws(() => recordedBoundary.serializeImmediateUi(fixture), /forbids/);
   });
 });
 
@@ -41,29 +64,57 @@ test("durable fixture rejects malformed operation and unknown schema fields", ()
 
   // When / Then
   malformedFixtures.forEach((fixture) => {
-    assert.throws(() => serializeDurableFixture(fixture), /not declared|not normalized/);
+    const serialize = Object.hasOwn(fixture, "provider_event_id")
+      ? () => recordedBoundary.serializeCommand("SlackEventCmd", fixture)
+      : () => recordedBoundary.serializePublishResult(fixture);
+    assert.throws(serialize, /not declared|not normalized/);
   });
 });
 
-test("legacy public webhook and unauthenticated private requests cannot reach Spring commands", () => {
+test("bounded contract fixture records no Spring fake command for legacy or unauthenticated input", () => {
   // Given
+  const springBoundary = new SpringFakeBoundary();
   const rejectedRequests = fixtures.rejected_requests;
 
   // When
-  const results = rejectedRequests.map((request) => invokeRecordedRequest(request));
+  const results = rejectedRequests.map((request) => recordedBoundary.forward(
+    {...request, body: fixtures[request.body_fixture]},
+    springBoundary,
+  ));
 
   // Then
-  assert.deepEqual(results.map(({status}) => status), [404, 401, 401]);
-  assert.equal(results.every(({reached_private_command}) => reached_private_command === false), true);
+  assert.deepEqual(results.map(({disposition}) => disposition), ["legacy-route", "identity-rejected", "identity-rejected"]);
+  assert.deepEqual(springBoundary.commands(), []);
 });
 
-test("valid private identity reaches only declared normalized private routes", () => {
+test("bounded contract fixture records no Spring fake command for canonical forbidden content", () => {
   // Given
+  const springBoundary = new SpringFakeBoundary();
+  const body = {
+    ...fixtures.event,
+    message: {...fixtures.event.message, raw_event: {event_id: "hostile-event"}},
+  };
+
+  // When / Then
+  assert.throws(() => recordedBoundary.forward(
+    {path: "/internal/slack/events", valid_private_identity: true, body},
+    springBoundary,
+  ), /forbids raw_event/);
+  assert.deepEqual(springBoundary.commands(), []);
+});
+
+test("bounded contract fixture forwards normalized command to injected Spring fake boundary", () => {
+  // Given
+  const springBoundary = new SpringFakeBoundary();
   const request = fixtures.valid_private_request;
 
   // When
-  const result = invokeRecordedRequest(request);
+  const result = recordedBoundary.forward(
+    {...request, body: fixtures[request.body_fixture]},
+    springBoundary,
+  );
 
   // Then
-  assert.deepEqual(result, {status: 202, reached_private_command: true});
+  assert.deepEqual(result, {disposition: "forwarded"});
+  assert.deepEqual(springBoundary.commands(), [{name: "SlackEventCmd", body: fixtures.event}]);
 });

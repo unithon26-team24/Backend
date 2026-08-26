@@ -11,11 +11,16 @@ class FakeAdapterContractTest {
     void recordsSlackNotionAndLmStudioCallsForInspection() {
         // Given
         var adapters = new FakeAdapters();
+        var harness = new FakeAdapterContractHarness(
+                adapters,
+                new DeterministicTestValues(java.time.Instant.parse("2026-08-26T00:00:00Z"), 41L));
 
         // When
-        adapters.slack().publish("project-1", "channel-1", "status-card");
-        adapters.notion().createChildPage("project-1", "parent-1", "snapshot");
-        adapters.lmStudio().generate("project-1", "plan-draft");
+        var slackReceipt = harness.execute(
+                new FakeAdapterContractHarness.SlackPublish("project-1", "channel-1", "status-card"));
+        harness.execute(new FakeAdapterContractHarness.NotionCreateChildPage(
+                "project-1", "parent-1", "snapshot"));
+        harness.execute(new FakeAdapterContractHarness.LmGenerate("project-1", "plan-draft"));
 
         // Then
         assertThat(adapters.slack().calls()).containsExactly(
@@ -24,6 +29,8 @@ class FakeAdapterContractTest {
                 new FakeAdapters.NotionCall("project-1", "parent-1", "snapshot"));
         assertThat(adapters.lmStudio().calls()).containsExactly(
                 new FakeAdapters.LmStudioCall("project-1", "plan-draft"));
+        assertThat(slackReceipt.id()).isEqualTo("test-id-41");
+        assertThat(slackReceipt.recordedAt()).isEqualTo(java.time.Instant.parse("2026-08-26T00:00:00Z"));
     }
 
     @Test
@@ -42,31 +49,25 @@ class FakeAdapterContractTest {
     }
 
     @Test
-    void rejectsUndeclaredFakeOperationWithoutRecordingCall() {
+    void interruptedLmStudioCallThroughHarnessFailsWithoutRecordingSuccess() {
         // Given
         var adapters = new FakeAdapters();
-
-        // When / Then
-        assertThatThrownBy(() -> adapters.invoke("slack", "delete_workspace", "project-1"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("undeclared fake operation");
-        assertThat(adapters.slack().calls()).isEmpty();
-    }
-
-    @Test
-    void interruptedLmStudioCallFailsWithoutRecordingSuccess() {
-        // Given
-        var adapters = new FakeAdapters();
+        var values = new DeterministicTestValues(java.time.Instant.parse("2026-08-26T00:00:00Z"), 1L);
+        var harness = new FakeAdapterContractHarness(adapters, values);
         Thread.currentThread().interrupt();
 
         try {
             // When / Then
-            assertThatThrownBy(() -> adapters.lmStudio().generate("project-1", "plan-draft"))
+            assertThatThrownBy(() -> harness.execute(
+                            new FakeAdapterContractHarness.LmGenerate("project-1", "plan-draft")))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("interrupted");
             assertThat(adapters.lmStudio().calls()).isEmpty();
         } finally {
             Thread.interrupted();
         }
+        assertThat(harness.execute(new FakeAdapterContractHarness.SlackPublish(
+                        "project-1", "channel-1", "status-card")).id())
+                .isEqualTo("test-id-1");
     }
 }

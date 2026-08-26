@@ -2,8 +2,11 @@ package com.uniton.backend.support;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.uniton.backend.persistence.ProjectRepository;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -11,43 +14,62 @@ class PostgresIntegrationSupportTest extends PostgresIntegrationSupport {
 
     @BeforeEach
     void migrateFreshDatabase() {
-        resetAndMigrate();
+        cleanAndMigrate();
     }
 
     @Test
-    void migratesFreshDatabaseWhenTestStarts() throws SQLException {
+    void supportsRepositoryConsumerOnFreshMigratedDatabase() throws SQLException {
         // Given
-        var migrationQuery = "SELECT version, success FROM flyway_schema_history ORDER BY installed_rank";
+        var projectId = UUID.randomUUID();
+        var setup = new ProjectRepository.ProjectSetup(
+                projectId,
+                "Harness consumer",
+                "Fresh migration",
+                Instant.parse("2026-09-01T00:00:00Z"),
+                "UTC",
+                UUID.randomUUID(),
+                "U-OWNER",
+                "Owner",
+                List.of("검증"));
 
         // When
-        try (var connection = openConnection();
-                var statement = connection.createStatement();
-                var rows = statement.executeQuery(migrationQuery)) {
-
-            // Then
-            assertThat(rows.next()).isTrue();
-            assertThat(rows.getString("version")).isEqualTo("001");
-            assertThat(rows.getBoolean("success")).isTrue();
+        try (var connection = connection()) {
+            new ProjectRepository(connection).createProject(setup);
         }
+
+        // Then
+        assertThat(projectCount()).isEqualTo(1);
     }
 
     @Test
     void removesStaleDatabaseStateWhenDatabaseIsReset() throws SQLException {
         // Given
-        try (var connection = openConnection();
-                var statement = connection.createStatement()) {
-            statement.execute("CREATE TABLE task8_stale_state (id bigint PRIMARY KEY)");
+        try (var connection = connection()) {
+            new ProjectRepository(connection).createProject(new ProjectRepository.ProjectSetup(
+                    UUID.randomUUID(),
+                    "Stale consumer",
+                    "Reset migration",
+                    Instant.parse("2026-09-01T00:00:00Z"),
+                    "UTC",
+                    UUID.randomUUID(),
+                    "U-OWNER",
+                    "Owner",
+                    List.of("검증")));
         }
 
         // When
-        resetAndMigrate();
+        cleanAndMigrate();
 
         // Then
-        try (var connection = openConnection();
+        assertThat(projectCount()).isZero();
+    }
+
+    private int projectCount() throws SQLException {
+        try (var connection = connection();
                 var statement = connection.createStatement();
-                var rows = statement.executeQuery("SELECT to_regclass('task8_stale_state')")) {
+                var rows = statement.executeQuery("SELECT count(*) FROM projects")) {
             rows.next();
-            assertThat(rows.getString(1)).isNull();
+            return rows.getInt(1);
         }
     }
 

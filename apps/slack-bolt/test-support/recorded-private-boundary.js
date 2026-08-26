@@ -1,43 +1,16 @@
-const forbiddenFields = new Set([
-  "app_token",
-  "authorization",
-  "bot_token",
-  "credential",
-  "envelope",
-  "payload",
-  "raw_envelope",
-  "raw_event_payload",
-  "signature",
-  "token",
-  "trigger_id",
+const springCommandByFixtureRoute = new Map([
+  ["/internal/slack/events", "SlackEventCmd"],
+  ["/internal/slack/interactions", "SlackInteractionCmd"],
 ]);
 
-const privateRoutes = new Map([
-  ["/internal/slack/events", "event"],
-  ["/internal/slack/interactions", "interaction"],
-  ["/internal/slack/publish-commands", "publish_command"],
-]);
-
-function rejectForbidden(value) {
-  if (Array.isArray(value)) {
-    value.forEach(rejectForbidden);
-    return;
-  }
-  if (value === null || typeof value !== "object") {
-    return;
-  }
-  for (const [field, nested] of Object.entries(value)) {
-    if (forbiddenFields.has(field)) {
-      throw new TypeError(`durable fixture forbids ${field}`);
-    }
-    rejectForbidden(nested);
+function requireObject(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object`);
   }
 }
 
 function requireExactFields(value, fields, label) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`);
-  }
+  requireObject(value, label);
   const actual = Object.keys(value).sort();
   const expected = [...fields].sort();
   if (actual.length !== expected.length || actual.some((field, index) => field !== expected[index])) {
@@ -46,9 +19,7 @@ function requireExactFields(value, fields, label) {
 }
 
 function requireClosedFields(value, required, optional, label) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`);
-  }
+  requireObject(value, label);
   const actual = Object.keys(value);
   const allowed = new Set([...required, ...optional]);
   if (!required.every((field) => Object.hasOwn(value, field))
@@ -57,96 +28,111 @@ function requireClosedFields(value, required, optional, label) {
   }
 }
 
-function validateFixture(fixture) {
-  if (Object.hasOwn(fixture, "provider_event_id")) {
-    requireExactFields(fixture, [
-      "actor_slack_user_id", "event_subtype", "event_type", "location", "message",
-      "provider_event_id", "received_at", "request_id", "team_id",
-    ], "event");
-    requireExactFields(fixture.location, ["channel_id", "message_ts", "thread_ts"], "event.location");
-    requireExactFields(fixture.message, ["text"], "event.message");
+function rejectForbidden(value, forbiddenFields) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => rejectForbidden(entry, forbiddenFields));
     return;
   }
-  if (Object.hasOwn(fixture, "interaction_id")) {
-    const fieldsBySurface = {
-      block_actions: ["action_id", "callback_id", "context_ref", "location"],
-      block_suggestion: ["action_id", "callback_id", "context_ref"],
-      slash_command: ["command", "context_ref", "location"],
-      view_submission: ["callback_id", "context_ref", "location", "submitted_values", "view_id"],
-    };
-    const surfaceFields = fieldsBySurface[fixture.surface];
-    if (!surfaceFields) {
-      throw new TypeError("interaction surface is not declared");
-    }
-    requireExactFields(fixture, [
-      "actor_slack_user_id", "interaction_id", "received_at", "request_id", "surface", "team_id",
-      ...surfaceFields,
-    ], "interaction");
-    if (Object.hasOwn(fixture, "location")) {
-      requireExactFields(
-        fixture.location,
-        ["channel_id", "message_ts", "thread_ts"],
-        "interaction.location",
-      );
-    }
-    if (Object.hasOwn(fixture, "command")) {
-      requireExactFields(fixture.command, ["name", "text"], "interaction.command");
-    }
+  if (value === null || typeof value !== "object") {
     return;
   }
-  if (Object.hasOwn(fixture, "kind")) {
-    const fieldsByKind = {
-      ephemeral: {required: ["kind", "text"], optional: ["blocks"]},
-      modal_errors: {required: ["errors", "kind"], optional: []},
-      none: {required: ["kind"], optional: []},
-      open_modal: {required: ["kind", "view"], optional: []},
-      options: {required: ["kind", "options"], optional: []},
-      push_modal: {required: ["kind", "view"], optional: []},
-      update_modal: {required: ["kind", "view"], optional: []},
-    };
-    const fieldRule = fieldsByKind[fixture.kind];
-    if (!fieldRule) {
-      throw new TypeError("immediate_ui kind is not declared");
+  for (const [field, nested] of Object.entries(value)) {
+    if (forbiddenFields.has(field)) {
+      throw new TypeError(`bounded fixture forbids ${field}`);
     }
-    requireClosedFields(fixture, fieldRule.required, fieldRule.optional, "immediate_ui");
-    return;
+    rejectForbidden(nested, forbiddenFields);
   }
-  if (Object.hasOwn(fixture, "result")) {
-    const fieldsByOperation = {
-      ephemeral_response: ["channel_id", "message_ts"],
-      post_message: ["channel_id", "message_ts"],
-      publish_home: ["user_id", "view_id"],
-      update_message: ["channel_id", "message_ts"],
-    };
-    const resultFields = fieldsByOperation[fixture.operation];
-    if (!resultFields) {
-      throw new TypeError("publish_result operation is not declared");
-    }
-    requireExactFields(fixture, [
-      "command_id", "idempotency_key", "operation", "request_id", "result",
-    ], "publish_result");
-    requireExactFields(fixture.result, resultFields, "publish_result.result");
-    return;
-  }
-  throw new TypeError("fixture schema is not declared");
 }
 
-export function serializeDurableFixture(fixture) {
-  rejectForbidden(fixture);
-  validateFixture(fixture);
-  return JSON.stringify(fixture);
+function validateCommand(contract, forbiddenFields, name, fixture) {
+  rejectForbidden(fixture, forbiddenFields);
+  const rule = contract.commands[name];
+  if (!rule) {
+    throw new TypeError(`command is not declared: ${name}`);
+  }
+  const type = fixture[rule.type_field];
+  const typeFields = rule.type_fields[type];
+  if (!typeFields) {
+    throw new TypeError(`${name} type is not declared`);
+  }
+  requireExactFields(fixture, [...rule.common_fields, ...typeFields], name);
+  for (const [field, allowed] of Object.entries(rule.objects)) {
+    if (Object.hasOwn(fixture, field)) {
+      requireExactFields(fixture[field], allowed, `${name}.${field}`);
+    }
+  }
+  if (rule.target_fields) {
+    requireExactFields(fixture.target, rule.target_fields[type], `${name}.target`);
+  }
 }
 
-export function invokeRecordedRequest(request) {
-  const expectedFixture = privateRoutes.get(request.path);
-  if (!expectedFixture) {
-    return {status: 404, reached_private_command: false};
+function validateImmediateUi(contract, forbiddenFields, fixture) {
+  rejectForbidden(fixture, forbiddenFields);
+  const rule = contract.immediate_ui_fields[fixture.kind];
+  if (!rule) {
+    throw new TypeError("immediate_ui kind is not declared");
   }
-  if (request.valid_private_identity !== true) {
-    return {status: 401, reached_private_command: false};
+  requireClosedFields(fixture, rule.required, rule.optional, "immediate_ui");
+}
+
+function validatePublishResult(forbiddenFields, fixture) {
+  rejectForbidden(fixture, forbiddenFields);
+  const resultFieldsByOperation = {
+    ephemeral_response: ["channel_id", "message_ts"],
+    post_message: ["channel_id", "message_ts"],
+    publish_home: ["user_id", "view_id"],
+    update_message: ["channel_id", "message_ts"],
+  };
+  const resultFields = resultFieldsByOperation[fixture.operation];
+  if (!resultFields) {
+    throw new TypeError("publish_result operation is not declared");
   }
-  if (request.body_fixture !== expectedFixture) {
-    return {status: 422, reached_private_command: false};
+  requireExactFields(
+    fixture,
+    ["command_id", "idempotency_key", "operation", "request_id", "result"],
+    "publish_result",
+  );
+  requireExactFields(fixture.result, resultFields, "publish_result.result");
+}
+
+export class SpringFakeBoundary {
+  #commands = [];
+
+  record(name, body) {
+    this.#commands.push({name, body: structuredClone(body)});
   }
-  return {status: 202, reached_private_command: true};
+
+  commands() {
+    return structuredClone(this.#commands);
+  }
+}
+
+export function createRecordedPrivateBoundary(contract) {
+  const forbiddenFields = new Set(contract.forbidden_fields);
+  return Object.freeze({
+    serializeCommand(name, fixture) {
+      validateCommand(contract, forbiddenFields, name, fixture);
+      return JSON.stringify(fixture);
+    },
+    serializeImmediateUi(fixture) {
+      validateImmediateUi(contract, forbiddenFields, fixture);
+      return JSON.stringify(fixture);
+    },
+    serializePublishResult(fixture) {
+      validatePublishResult(forbiddenFields, fixture);
+      return JSON.stringify(fixture);
+    },
+    forward(request, springBoundary) {
+      const commandName = springCommandByFixtureRoute.get(request.path);
+      if (!commandName) {
+        return {disposition: "legacy-route"};
+      }
+      if (request.valid_private_identity !== true) {
+        return {disposition: "identity-rejected"};
+      }
+      validateCommand(contract, forbiddenFields, commandName, request.body);
+      springBoundary.record(commandName, request.body);
+      return {disposition: "forwarded"};
+    },
+  });
 }

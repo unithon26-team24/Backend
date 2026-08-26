@@ -21,11 +21,6 @@ public final class FakeAdapters {
         return lmStudio;
     }
 
-    public void invoke(String provider, String operation, String projectId) {
-        throw new IllegalArgumentException(
-                "undeclared fake operation: " + provider + "." + operation + " for " + projectId);
-    }
-
     public static final class Slack {
         private final List<SlackCall> calls = new ArrayList<>();
 

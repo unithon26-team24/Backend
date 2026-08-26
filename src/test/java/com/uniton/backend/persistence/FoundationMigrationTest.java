@@ -3,6 +3,7 @@ package com.uniton.backend.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.uniton.backend.support.PostgresIntegrationSupport;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;

@@ -10,7 +10,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 public abstract class PostgresIntegrationSupport {
 
-    private static final PostgreSQLContainer<?> POSTGRES =
+    protected static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine");
 
     @BeforeAll
@@ -23,13 +23,13 @@ public abstract class PostgresIntegrationSupport {
         POSTGRES.stop();
     }
 
-    protected final Connection openConnection() throws SQLException {
+    protected Connection connection() throws SQLException {
         return DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     }
 
-    protected final void resetAndMigrate() {
-        var flyway = Flyway.configure()
+    protected void cleanAndMigrate() {
+        Flyway flyway = Flyway.configure()
                 .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
                 .cleanDisabled(false)
                 .load();
