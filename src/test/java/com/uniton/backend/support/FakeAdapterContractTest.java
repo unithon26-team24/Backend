@@ -49,6 +49,21 @@ class FakeAdapterContractTest {
     }
 
     @Test
+    void rejectsUndeclaredOperationWithoutRecordingCall() {
+        // Given
+        var adapters = new FakeAdapters();
+        var harness = new FakeAdapterContractHarness(
+                adapters,
+                new DeterministicTestValues(java.time.Instant.parse("2026-08-26T00:00:00Z"), 1L));
+
+        // When / Then
+        assertThatThrownBy(() -> harness.execute("slack.delete_workspace"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("undeclared fake operation");
+        assertThat(adapters.slack().calls()).isEmpty();
+    }
+
+    @Test
     void interruptedLmStudioCallThroughHarnessFailsWithoutRecordingSuccess() {
         // Given
         var adapters = new FakeAdapters();

@@ -24,6 +24,10 @@ public final class FakeAdapterContractHarness {
         return new Receipt(values.nextId(), values.clock().instant());
     }
 
+    public Receipt execute(String operation) {
+        throw new IllegalArgumentException("undeclared fake operation: " + operation);
+    }
+
     public sealed interface Operation
             permits SlackPublish, NotionCreateChildPage, LmGenerate {}
 
