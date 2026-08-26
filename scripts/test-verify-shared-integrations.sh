@@ -44,11 +44,23 @@ run_case credential-env 1 "$fixtures/valid.fixture" SLACK_APP_TOKEN=
 run_case least-privilege 1 "$fixtures/least-privilege.fixture"
 run_case unauthenticated-bridge 1 "$fixtures/unauthenticated-bridge.fixture"
 
+set +e
 env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
   "$verifier" --live --redacted --fixture "$fixtures/valid.fixture" >"$tmp_dir/live.log" 2>&1
+live_status=$?
+set -e
+if [ "$live_status" -ne 2 ]; then
+  printf 'FAIL live protocol: expected status 2, got %s\n' "$live_status" >&2
+  exit 1
+fi
 grep -q '^REMOTE_CONFIGURATION_WRITES=FORBIDDEN$' "$tmp_dir/live.log"
 grep -q '^LM_STUDIO_TAILSCALE_ROUTE=PENDING_LIVE$' "$tmp_dir/live.log"
 grep -q '^GPU_1234_PUBLIC_EXPOSURE=PENDING_LIVE$' "$tmp_dir/live.log"
-printf 'PASS live protocol status=0 remote-writes=forbidden\n'
+grep -q '^RESULT=BLOCKED$' "$tmp_dir/live.log"
+if grep -q '^RESULT=PASS$' "$tmp_dir/live.log"; then
+  printf 'FAIL live protocol: reported pass without live proof\n' >&2
+  exit 1
+fi
+printf 'PASS live protocol status=2 result=blocked remote-writes=forbidden\n'
 
 printf 'PASS verifier contract suite\n'
