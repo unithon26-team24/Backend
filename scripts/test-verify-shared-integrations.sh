@@ -175,11 +175,32 @@ BASH_ENV="$bash_env_startup" BASH_XTRACEFD=2 \
 bash_env_status=$?
 set -e
 if [ "$bash_env_status" -ne 0 ] || grep -q "$bash_env_sentinel" "$bash_env_output"; then
-  printf 'FAIL inherited BASH_ENV: status=%s sentinel leaked\n' "$bash_env_status" >&2
+  printf 'FAIL direct executable BASH_ENV: status=%s sentinel leaked\n' "$bash_env_status" >&2
   exit 1
 fi
 grep -q '^RESULT=PASS$' "$bash_env_output"
-printf 'PASS inherited BASH_ENV status=0 sentinel-count=0 redacted=yes\n'
+printf 'PASS direct executable BASH_ENV status=0 sentinel-count=0 redacted=yes\n'
+
+shellopts_path_sentinel=uniton-shellopts-path-sentinel
+shellopts_ps4_sentinel=uniton-shellopts-ps4-sentinel
+shellopts_fixture="$tmp_dir/$shellopts_path_sentinel.fixture"
+shellopts_output="$tmp_dir/shellopts.log"
+cp "$fixtures/valid.fixture" "$shellopts_fixture"
+chmod 0600 "$shellopts_fixture"
+set +e
+env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+  SHELLOPTS=xtrace PS4="$shellopts_ps4_sentinel:" \
+  "$verifier" --local-contract --redacted --fixture "$shellopts_fixture" >"$shellopts_output" 2>&1
+shellopts_status=$?
+set -e
+shellopts_pass_count=$(grep -c '^RESULT=PASS$' "$shellopts_output" || true)
+if [ "$shellopts_status" -ne 0 ] ||
+  [ "$shellopts_pass_count" -ne 1 ] ||
+  grep -Eq "$shellopts_path_sentinel|$shellopts_ps4_sentinel" "$shellopts_output"; then
+  printf 'FAIL direct executable SHELLOPTS: status=%s pass-count=%s sentinel leaked\n' "$shellopts_status" "$shellopts_pass_count" >&2
+  exit 1
+fi
+printf 'PASS direct executable SHELLOPTS status=0 pass-count=1 sentinel-count=0 redacted=yes\n'
 
 ci_java_home="$tmp_dir/ci-java-home"
 mkdir "$ci_java_home" "$ci_java_home/bin"

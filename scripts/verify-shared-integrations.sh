@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -p
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin
 export PATH
@@ -8,7 +8,7 @@ launcher_pid=$$
 if [ "${UNITON_PREFLIGHT_BASH_PID:-}" != "$launcher_pid" ]; then
   UNITON_PREFLIGHT_BASH_PID=$launcher_pid
   export UNITON_PREFLIGHT_BASH_PID
-  exec /bin/bash "$0" "$@"
+  exec /usr/bin/env -u SHELLOPTS -u BASH_ENV -u BASH_XTRACEFD -u ENV /bin/bash "$0" "$@"
 fi
 unset UNITON_PREFLIGHT_BASH_PID launcher_pid
 
