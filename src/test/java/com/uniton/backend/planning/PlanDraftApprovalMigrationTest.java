@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -111,6 +112,33 @@ class PlanDraftApprovalMigrationTest extends PostgresIntegrationSupport {
         System.out.println("DATA_SURFACE concurrent_approval_writers=2 durable_scope_records=1");
     }
 
+    @Test
+    void concurrentApplyRejectsApprovalForRevisionItSupersedes() throws Exception {
+        // Given
+        PlanDraftRevision later = PlanDraftTestFixture.validRevision(
+                context, UUID.randomUUID(), 2, PlanDraftTestFixture.HASH_TWO);
+        try (Connection applyConnection = connection();
+                var executor = Executors.newSingleThreadExecutor()) {
+            applyConnection.setAutoCommit(false);
+            new PlanDraftRepository(applyConnection).createRevision(later);
+            Future<Boolean> staleApproval = executor.submit(this::submitStaleApproval);
+
+            try {
+                // When
+                assertThat(awaitApprovalLock(staleApproval)).isTrue();
+                applyConnection.commit();
+
+                // Then
+                assertThat(staleApproval.get()).isFalse();
+            } finally {
+                applyConnection.rollback();
+            }
+        }
+        assertThat(approvalCount()).isZero();
+        assertThat(approvals.isCurrentRevisionEligible(context.draftId())).isFalse();
+        System.out.println("DATA_SURFACE concurrent_apply_revision=2 stale_approval_revision=1 committed=false");
+    }
+
     private PlanDraftApprovalRepository.Approval approval(
             String scope, UUID partId, UUID actorId, PlanDraftRevision target) {
         return new PlanDraftApprovalRepository.Approval(
@@ -135,5 +163,35 @@ class PlanDraftApprovalMigrationTest extends PostgresIntegrationSupport {
         } catch (SQLException expectedConstraintFailure) {
             return false;
         }
+    }
+
+    private boolean submitStaleApproval() {
+        try (Connection contender = connection()) {
+            contender.createStatement().execute("SET application_name = 'task11-stale-approval'");
+            new PlanDraftApprovalRepository(contender).submit(
+                    approval("project", null, context.ownerId(), revision));
+            return true;
+        } catch (SQLException expectedConstraintFailure) {
+            return false;
+        }
+    }
+
+    private boolean awaitApprovalLock(Future<Boolean> staleApproval) throws SQLException {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(5).toNanos();
+        while (System.nanoTime() < deadline && !staleApproval.isDone()) {
+            try (var statement = database.prepareStatement("""
+                    SELECT 1
+                    FROM pg_stat_activity
+                    WHERE application_name = 'task11-stale-approval'
+                      AND wait_event_type = 'Lock'
+                    """);
+                    var rows = statement.executeQuery()) {
+                if (rows.next()) {
+                    return true;
+                }
+            }
+            Thread.onSpinWait();
+        }
+        return false;
     }
 }

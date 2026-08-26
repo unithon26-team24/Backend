@@ -631,9 +631,19 @@ CREATE FUNCTION plan_draft_validate_approval()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+    locked_revision_id uuid;
 BEGIN
-    IF NOT plan_draft_validate_current_revision_reference(
-            NEW.plan_draft_id, NEW.draft_revision_id, NEW.revision_content_hash) THEN
+    SELECT current_revision_id INTO locked_revision_id
+    FROM plan_drafts
+    WHERE id = NEW.plan_draft_id AND project_id = NEW.project_id
+    FOR UPDATE;
+    IF locked_revision_id IS DISTINCT FROM NEW.draft_revision_id OR NOT EXISTS (
+        SELECT 1 FROM draft_revisions
+        WHERE plan_draft_id = NEW.plan_draft_id
+          AND id = NEW.draft_revision_id
+          AND content_hash = NEW.revision_content_hash
+    ) THEN
         RAISE EXCEPTION 'approval must reference current revision and content hash';
     END IF;
     IF NOT EXISTS (

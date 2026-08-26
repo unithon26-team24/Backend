@@ -68,6 +68,7 @@ public final class PlanDraftRepository {
             draft.setObject(1, revision.draftId());
             draft.setObject(2, revision.projectId());
             draft.executeUpdate();
+            lockDraft(revision.draftId());
             row.setObject(1, revision.revisionId());
             row.setObject(2, revision.draftId());
             row.setObject(3, revision.projectId());
@@ -75,6 +76,18 @@ public final class PlanDraftRepository {
             row.setString(5, revision.contentHash());
             row.setObject(6, revision.actorMemberId());
             row.executeUpdate();
+        }
+    }
+
+    private void lockDraft(UUID draftId) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                        "SELECT id FROM plan_drafts WHERE id = ? FOR UPDATE")) {
+            statement.setObject(1, draftId);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    throw new SQLException("plan draft does not exist");
+                }
+            }
         }
     }
 
