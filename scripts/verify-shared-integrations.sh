@@ -33,6 +33,14 @@ done
 [ -n "$mode" ] || fail invalid_arguments
 [ "$redacted" = true ] || fail redaction_required
 [ -r "$fixture" ] || fail fixture_unreadable
+[ -f "$fixture" ] || fail fixture_must_be_regular
+
+fixture_snapshot=$(mktemp "${TMPDIR:-/tmp}/uniton-preflight-fixture.XXXXXX") || fail fixture_snapshot_failed
+trap 'rm -f "$fixture_snapshot"' EXIT HUP INT TERM
+dd if="$fixture" of="$fixture_snapshot" bs=8193 count=1 2>/dev/null || fail fixture_snapshot_failed
+fixture_bytes=$(wc -c <"$fixture_snapshot")
+[ "$fixture_bytes" -le 8192 ] || fail fixture_limits_exceeded
+LC_ALL=C awk 'length($0) > 512 || NR > 32 { exit 1 }' "$fixture_snapshot" || fail fixture_limits_exceeded
 
 if [ "${SLACK_APP_TOKEN+x}" = x ] ||
   [ "${SLACK_BOT_TOKEN+x}" = x ] ||
@@ -127,7 +135,7 @@ EOF
 
   seen="$seen$name|"
   count=$((count + 1))
-done <"$fixture"
+done <"$fixture_snapshot"
 
 [ "$count" -eq 8 ] || fail missing_configuration_name
 [ "$bridge_auth" = service_identity ] || fail unauthenticated_private_bridge
