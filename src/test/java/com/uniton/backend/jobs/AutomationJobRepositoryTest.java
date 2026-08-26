@@ -55,7 +55,9 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
         // Given
         try (Connection connection = connection()) {
             new AutomationJobRepository(connection)
-                    .enqueue(projectId, "generate_plan_draft", "claim-once", Instant.now().minusSeconds(1));
+                    .enqueue(projectId, "generate_plan_draft", "claim-once",
+                            Instant.parse("2100-01-01T00:00:00Z"));
+            makeJobDueInDatabase(connection, "claim-once");
         }
 
         // When
@@ -82,7 +84,8 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
             assertThat(winners).isEqualTo(1);
         }
         assertThat(runningJobCount()).isEqualTo(1);
-        System.out.println("DATA_SURFACE concurrent_claimers=2 durable_lease_winners=1");
+        System.out.println(
+                "DATA_SURFACE concurrent_claimers=2 durable_lease_winners=1 eligibility_clock=postgres");
     }
 
     @Test
@@ -222,6 +225,17 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
 
     private int jobCount() throws SQLException {
         return scalar("SELECT count(*) FROM automation_jobs");
+    }
+
+    private void makeJobDueInDatabase(Connection connection, String jobKey) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                UPDATE automation_jobs
+                SET run_after = clock_timestamp() - interval '1 second'
+                WHERE job_key = ?
+                """)) {
+            statement.setString(1, jobKey);
+            assertThat(statement.executeUpdate()).isEqualTo(1);
+        }
     }
 
     private int runningJobCount() throws SQLException {

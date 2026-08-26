@@ -8,8 +8,11 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 class FoundationMigrationTest extends PostgresIntegrationSupport {
 
@@ -49,13 +52,17 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
         try (Connection connection = connection();
                 var statement = connection.prepareStatement("""
                         SELECT p.planning_time_zone, pm.member_role, ppm.part_role,
+                               cardinality(pm.responsibility_labels) AS owner_label_count,
+                               cardinality(part_lead.responsibility_labels) AS lead_label_count,
                                array_agg(pr.provider ORDER BY pr.provider) AS providers
                         FROM projects p
                         JOIN project_members pm ON pm.id = p.owner_member_id
                         JOIN project_part_memberships ppm ON ppm.project_id = p.id
+                        JOIN project_members part_lead ON part_lead.id = ppm.member_id
                         JOIN project_resource_references pr ON pr.project_id = p.id
                         WHERE p.id = ? AND ppm.member_id = ?
-                        GROUP BY p.planning_time_zone, pm.member_role, ppm.part_role
+                        GROUP BY p.planning_time_zone, pm.member_role, ppm.part_role,
+                                 pm.responsibility_labels, part_lead.responsibility_labels
                         """)) {
             statement.setObject(1, projectId);
             statement.setObject(2, memberId);
@@ -64,10 +71,12 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
                 assertThat(rows.getString("planning_time_zone")).isEqualTo("Asia/Seoul");
                 assertThat(rows.getString("member_role")).isEqualTo("owner");
                 assertThat(rows.getString("part_role")).isEqualTo("part_lead");
+                assertThat(rows.getInt("owner_label_count")).isEqualTo(2);
+                assertThat(rows.getInt("lead_label_count")).isEqualTo(1);
                 assertThat((String[]) rows.getArray("providers").getArray())
                         .containsExactly("notion", "slack");
                 System.out.println(
-                        "DATA_SURFACE foundation timezone=Asia/Seoul owner=owner part=part_lead references=notion,slack");
+                        "DATA_SURFACE foundation timezone=Asia/Seoul owner=owner part=part_lead labels=1,2 references=notion,slack");
             }
         }
     }
@@ -100,18 +109,34 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
         System.out.println("DATA_SURFACE malformed_labels=rejected leaked_projects=0");
     }
 
-    @Test
-    void rejectsResponsibilityLabelsBeyondPlaintextBound() throws SQLException {
+    @ParameterizedTest
+    @MethodSource("responsibilityLabelsOutsideFrozenBounds")
+    void rejectsResponsibilityLabelsOutsideFrozenBounds(List<String> labels) throws SQLException {
         // Given
         ProjectRepository.ProjectSetup setup = new ProjectRepository.ProjectSetup(
                 UUID.randomUUID(), "Invalid", "Goal", Instant.now(), "Asia/Seoul", UUID.randomUUID(),
-                "U1", "Owner", List.of("가".repeat(65)));
+                "U1", "Owner", labels);
 
         // When / Then
         assertThatThrownBy(() -> repository.createProject(setup))
                 .isInstanceOf(SQLException.class);
         assertThat(projectCount()).isZero();
-        System.out.println("DATA_SURFACE oversized_label=rejected leaked_projects=0");
+        System.out.println("DATA_SURFACE frozen_label_bounds=rejected leaked_projects=0");
+    }
+
+    @Test
+    void acceptsThreeBoundedResponsibilityLabels() throws SQLException {
+        // Given
+        UUID projectId = UUID.randomUUID();
+
+        // When
+        repository.createProject(new ProjectRepository.ProjectSetup(
+                projectId, "Valid", "Goal", Instant.now(), "Asia/Seoul", UUID.randomUUID(),
+                "U1", "Owner", List.of("기획", "운영", "의사결정")));
+
+        // Then
+        assertThat(responsibilityLabelCount(projectId)).isEqualTo(3);
+        System.out.println("DATA_SURFACE valid_responsibility_labels=3 accepted=true");
     }
 
     @Test
@@ -216,5 +241,27 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
                 return rows.getInt(1);
             }
         }
+    }
+
+    private int responsibilityLabelCount(UUID projectId) throws SQLException {
+        try (Connection connection = connection();
+                var statement = connection.prepareStatement("""
+                        SELECT cardinality(responsibility_labels)
+                        FROM project_members
+                        WHERE project_id = ? AND member_role = 'owner'
+                        """)) {
+            statement.setObject(1, projectId);
+            try (var rows = statement.executeQuery()) {
+                rows.next();
+                return rows.getInt(1);
+            }
+        }
+    }
+
+    private static Stream<List<String>> responsibilityLabelsOutsideFrozenBounds() {
+        return Stream.of(
+                List.of(),
+                List.of("a", "b", "c", "d"),
+                List.of("가".repeat(49)));
     }
 }

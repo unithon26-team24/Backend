@@ -6,11 +6,11 @@ AS $$
 DECLARE
     label text;
 BEGIN
-    IF labels IS NULL OR cardinality(labels) > 12 THEN
+    IF labels IS NULL OR cardinality(labels) NOT BETWEEN 1 AND 3 THEN
         RETURN false;
     END IF;
     FOREACH label IN ARRAY labels LOOP
-        IF label IS NULL OR char_length(label) NOT BETWEEN 1 AND 64 OR label ~ '[[:cntrl:]]' THEN
+        IF label IS NULL OR char_length(label) NOT BETWEEN 1 AND 48 OR label ~ '[[:cntrl:]]' THEN
             RETURN false;
         END IF;
     END LOOP;
@@ -53,7 +53,7 @@ CREATE TABLE project_members (
     slack_user_id text NOT NULL CHECK (char_length(slack_user_id) BETWEEN 1 AND 128 AND slack_user_id !~ '[[:space:][:cntrl:]]'),
     display_name text NOT NULL CHECK (char_length(display_name) BETWEEN 1 AND 200 AND display_name !~ '[[:cntrl:]]'),
     member_role text NOT NULL CHECK (member_role IN ('owner', 'member')),
-    responsibility_labels text[] NOT NULL DEFAULT '{}' CHECK (foundation_labels_valid(responsibility_labels)),
+    responsibility_labels text[] NOT NULL CHECK (foundation_labels_valid(responsibility_labels)),
     is_active boolean NOT NULL DEFAULT true,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
