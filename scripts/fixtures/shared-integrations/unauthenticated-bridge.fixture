@@ -1,0 +1,9 @@
+bridge_auth=none
+SLACK_APP_TOKEN|credential|bolt|/run/secrets/uniton/slack_app_token|0|0400|ro|redacted
+SLACK_BOT_TOKEN|credential|bolt|/run/secrets/uniton/slack_bot_token|0|0400|ro|redacted
+NOTION_API_TOKEN|credential|notion-worker|/run/secrets/uniton/notion_api_token|0|0400|ro|redacted
+LM_STUDIO_BASE_URL|credential|lm-studio-worker|/run/secrets/uniton/lm_studio_base_url|0|0400|ro|redacted
+LM_STUDIO_API_KEY|credential|lm-studio-worker|/run/secrets/uniton/lm_studio_api_key|0|0400|ro|redacted
+UNITON_SLACK_CHANNEL_ALLOWLIST|config|bolt|/run/secrets/uniton/uniton_slack_channel_allowlist|0|0400|ro|redacted-id
+UNITON_NOTION_PARENT_ALLOWLIST|config|notion-worker|/run/secrets/uniton/uniton_notion_parent_allowlist|0|0400|ro|redacted-id
+UNITON_DEMO_MODE|config|worker|/run/secrets/uniton/uniton_demo_mode|0|0400|ro|false

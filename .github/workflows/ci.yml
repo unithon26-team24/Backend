@@ -9,6 +9,17 @@ permissions:
   contents: read
 
 jobs:
+  shared-integration-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Run shared integration preflight contract tests
+        run: bash ./scripts/test-verify-shared-integrations.sh
+
   java:
     runs-on: ubuntu-latest
     steps:
