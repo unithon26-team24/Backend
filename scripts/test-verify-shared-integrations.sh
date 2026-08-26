@@ -172,7 +172,7 @@ set +e
 env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
   "$verifier" --local-contract --redacted --fixture "$fifo_fixture" >"$fifo_output" 2>&1 &
 fifo_pid=$!
-(sleep 0.1; kill -TERM "$fifo_pid" 2>/dev/null) &
+(sleep 2; kill -TERM "$fifo_pid" 2>/dev/null) &
 fifo_watchdog_pid=$!
 qa_pids="$fifo_pid $fifo_watchdog_pid"
 wait "$fifo_pid"
@@ -193,7 +193,7 @@ set +e
 env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
   "$verifier" --local-contract --redacted --fixture /dev/zero >"$non_regular_output" 2>&1 &
 verifier_pid=$!
-(sleep 0.1; kill -TERM "$verifier_pid" 2>/dev/null) &
+(sleep 2; kill -TERM "$verifier_pid" 2>/dev/null) &
 watchdog_pid=$!
 qa_pids="$verifier_pid $watchdog_pid"
 wait "$verifier_pid"

@@ -123,7 +123,11 @@ for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jd
   case $java_candidate in
     /opt/hostedtoolcache/*)
       [ -f "$java_candidate" ] && [ ! -L "$java_candidate" ] || continue
-      [ "$(stat -c '%u' "$java_candidate")" = 0 ] || continue
+      java_toolcache_root=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk
+      [ -d "$java_toolcache_root" ] || continue
+      [ "$(stat -c '%u' "$java_candidate")" = "$(stat -c '%u' "$java_toolcache_root")" ] || continue
+      java_toolcache_mode=$(stat -c '%a' "$java_toolcache_root") || continue
+      [ $((8#$java_toolcache_mode & 0002)) -eq 0 ] || continue
       java_mode=$(stat -c '%a' "$java_candidate") || continue
       [ $((8#$java_mode & 0022)) -eq 0 ] || continue
       ;;
