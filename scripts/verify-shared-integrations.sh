@@ -5,6 +5,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 mode=
 redacted=false
 fixture="$script_dir/fixtures/shared-integrations/valid.fixture"
+fixture_supplied=false
 
 fail() {
   printf 'RESULT=FAIL\nERROR=%s\n' "$1" >&2
@@ -24,6 +25,7 @@ while [ "$#" -gt 0 ]; do
       shift
       [ "$#" -gt 0 ] || fail invalid_arguments
       fixture=$1
+      fixture_supplied=true
       ;;
     *) fail invalid_arguments ;;
   esac
@@ -34,6 +36,20 @@ done
 [ "$redacted" = true ] || fail redaction_required
 [ -r "$fixture" ] || fail fixture_unreadable
 [ -f "$fixture" ] || fail fixture_must_be_regular
+if [ "$fixture_supplied" = true ]; then
+  [ ! -L "$fixture" ] || fail fixture_must_be_regular
+  if fixture_mode=$(stat -f '%Lp' "$fixture" 2>/dev/null); then
+    :
+  elif fixture_mode=$(stat -c '%a' "$fixture" 2>/dev/null); then
+    :
+  else
+    fail fixture_metadata_unavailable
+  fi
+  case $fixture_mode in
+    400|600) ;;
+    *) fail fixture_permissions_too_open ;;
+  esac
+fi
 
 fixture_snapshot=$(mktemp "${TMPDIR:-/tmp}/uniton-preflight-fixture.XXXXXX") || fail fixture_snapshot_failed
 trap 'rm -f "$fixture_snapshot"' EXIT HUP INT TERM

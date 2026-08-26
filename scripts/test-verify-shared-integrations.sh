@@ -21,10 +21,13 @@ run_case() {
   fixture=$3
   shift 3
   output="$tmp_dir/$name.log"
+  private_fixture="$tmp_dir/$name.fixture"
+  cp "$fixture" "$private_fixture"
+  chmod 0600 "$private_fixture"
 
   set +e
   env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
-    "$@" "$verifier" --local-contract --redacted --fixture "$fixture" >"$output" 2>&1
+    "$@" "$verifier" --local-contract --redacted --fixture "$private_fixture" >"$output" 2>&1
   status=$?
   set -e
 
@@ -73,9 +76,33 @@ expect_fixture_limit() {
 awk 'BEGIN { for (i = 0; i < 513; i++) printf "x"; print "" }' >"$tmp_dir/overlong.fixture"
 awk 'BEGIN { for (i = 0; i < 33; i++) print "x" }' >"$tmp_dir/too-many-lines.fixture"
 awk 'BEGIN { for (line = 0; line < 20; line++) { for (i = 0; i < 500; i++) printf "x"; print "" } }' >"$tmp_dir/oversized.fixture"
+chmod 0600 "$tmp_dir/overlong.fixture" "$tmp_dir/too-many-lines.fixture" "$tmp_dir/oversized.fixture"
 expect_fixture_limit overlong-fixture "$tmp_dir/overlong.fixture"
 expect_fixture_limit too-many-lines-fixture "$tmp_dir/too-many-lines.fixture"
 expect_fixture_limit oversized-fixture "$tmp_dir/oversized.fixture"
+
+expect_open_permissions_rejected() {
+  mode=$1
+  open_fixture="$tmp_dir/open-$mode.fixture"
+  output="$tmp_dir/open-$mode.log"
+  cp "$fixtures/valid.fixture" "$open_fixture"
+  chmod "$mode" "$open_fixture"
+  set +e
+  env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
+    "$verifier" --local-contract --redacted --fixture "$open_fixture" >"$output" 2>&1
+  open_status=$?
+  set -e
+  if [ "$open_status" -ne 1 ] ||
+    ! grep -q '^RESULT=FAIL$' "$output" ||
+    ! grep -q '^ERROR=fixture_permissions_too_open$' "$output"; then
+    printf 'FAIL open fixture mode %s: expected private-file rejection, got status %s\n' "$mode" "$open_status" >&2
+    exit 1
+  fi
+  printf 'PASS open fixture mode=%s status=1 redacted=yes\n' "$mode"
+}
+
+expect_open_permissions_rejected 0644
+expect_open_permissions_rejected 0666
 
 non_regular_output="$tmp_dir/non-regular.log"
 set +e
@@ -100,8 +127,11 @@ grep -q '^ERROR=fixture_must_be_regular$' "$non_regular_output"
 printf 'PASS non-regular fixture status=1 prompt=yes redacted=yes\n'
 
 set +e
+live_fixture="$tmp_dir/live.fixture"
+cp "$fixtures/valid.fixture" "$live_fixture"
+chmod 0600 "$live_fixture"
 env -u SLACK_APP_TOKEN -u SLACK_BOT_TOKEN -u NOTION_API_TOKEN -u LM_STUDIO_BASE_URL -u LM_STUDIO_API_KEY \
-  "$verifier" --live --redacted --fixture "$fixtures/valid.fixture" >"$tmp_dir/live.log" 2>&1
+  "$verifier" --live --redacted --fixture "$live_fixture" >"$tmp_dir/live.log" 2>&1
 live_status=$?
 set -e
 if [ "$live_status" -ne 2 ]; then
