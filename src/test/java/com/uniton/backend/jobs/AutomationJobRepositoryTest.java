@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -76,7 +77,7 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
     @Test
     void agendaTimerUsesServerDerivedRunAfterAndNinetySecondLease() throws SQLException {
         // Given
-        Instant start = Instant.now().minusSeconds(600);
+        Instant start = Instant.parse("2026-01-01T00:00:00.000000123Z");
         AutomationJobRepository.AgendaTimer timer = new AutomationJobRepository.AgendaTimer(
                 projectId, UUID.randomUUID(), UUID.randomUUID(), "80_percent", start, Duration.ofMinutes(10));
 
@@ -87,7 +88,8 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
             AutomationJobRepository.Job claimed = jobs.claimNext("timer-worker").orElseThrow();
 
             // Then
-            assertThat(enqueued.runAfter()).isEqualTo(start.plus(Duration.ofMinutes(8)));
+            assertThat(enqueued.runAfter())
+                    .isEqualTo(start.truncatedTo(ChronoUnit.MICROS).plus(Duration.ofMinutes(8)));
             assertThat(Duration.between(claimed.leasedAt(), claimed.leaseExpiresAt()).getSeconds())
                     .isEqualTo(90);
             System.out.println("DATA_SURFACE timer_run_after=server_derived lease_seconds=90");
