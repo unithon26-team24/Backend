@@ -17,11 +17,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-      - name: Inspect trusted Java metadata
-        run: |
-          stat -c 'toolchain uid=%u mode=%a type=%F' "$JAVA_HOME"
-          stat -Lc 'java uid=%u mode=%a type=%F' "$JAVA_HOME/bin/java"
-          printf 'runner uid=%s\n' "$(id -u)"
       - name: Run shared integration preflight contract tests
         run: bash ./scripts/test-verify-shared-integrations.sh
 

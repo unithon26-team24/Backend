@@ -5,7 +5,7 @@ PATH=/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin
 export PATH
 TMPDIR=/tmp
 export TMPDIR
-unset -f dirname uname stat mktemp dd wc awk sed tr id java docker rm 2>/dev/null || true
+unset -f dirname uname stat mktemp dd wc awk sed tr java docker rm 2>/dev/null || true
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 mode=
@@ -123,19 +123,11 @@ for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jd
   case $java_candidate in
     /opt/hostedtoolcache/*)
       [ -f "$java_candidate" ] || continue
-      java_toolchain_root=${java_candidate%/bin/java}
-      [ -d "$java_toolchain_root" ] || continue
-      process_uid=$(id -u) || continue
-      java_owner=$(stat -Lc '%u' "$java_candidate") || continue
-      java_toolchain_owner=$(stat -c '%u' "$java_toolchain_root") || continue
-      case $java_owner:$java_toolchain_owner in
-        0:0|0:"$process_uid"|"$process_uid":0|"$process_uid":"$process_uid") ;;
-        *) continue ;;
-      esac
-      java_toolchain_mode=$(stat -c '%a' "$java_toolchain_root") || continue
-      [ $((8#$java_toolchain_mode & 0002)) -eq 0 ] || continue
-      java_mode=$(stat -Lc '%a' "$java_candidate") || continue
-      [ $((8#$java_mode & 0002)) -eq 0 ] || continue
+      java_version_root=${java_candidate%/x64/bin/java}
+      [ -d "$java_version_root" ] && [ ! -L "$java_version_root" ] || continue
+      [ "$(stat -c '%u' "$java_version_root")" = 0 ] || continue
+      java_version_mode=$(stat -c '%a' "$java_version_root") || continue
+      [ $((8#$java_version_mode & 0022)) -eq 0 ] || continue
       ;;
   esac
   java_line=$("$java_candidate" -version 2>&1 | sed -n '1p') || continue
