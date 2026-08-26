@@ -111,7 +111,11 @@ if [ "${SLACK_APP_TOKEN+x}" = x ] ||
   fail credential_environment_rejected
 fi
 
-java_line=$(java -version 2>&1 | sed -n '1p') || fail java_21_required
+java_executable=java
+if [ -n "${JAVA_HOME:-}" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+  java_executable="$JAVA_HOME/bin/java"
+fi
+java_line=$("$java_executable" -version 2>&1 | sed -n '1p') || fail java_21_required
 case $java_line in
   *'version "21.'*) ;;
   *) fail java_21_required ;;
