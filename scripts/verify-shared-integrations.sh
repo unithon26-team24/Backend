@@ -127,9 +127,9 @@ for java_candidate in /usr/bin/java /opt/hostedtoolcache/Java_Temurin-Hotspot_jd
       [ -d "$java_toolchain_root" ] || continue
       [ "$(stat -Lc '%u' "$java_candidate")" = "$(stat -c '%u' "$java_toolchain_root")" ] || continue
       java_toolchain_mode=$(stat -c '%a' "$java_toolchain_root") || continue
-      [ $((8#$java_toolchain_mode & 0022)) -eq 0 ] || continue
+      [ $((8#$java_toolchain_mode & 0002)) -eq 0 ] || continue
       java_mode=$(stat -Lc '%a' "$java_candidate") || continue
-      [ $((8#$java_mode & 0022)) -eq 0 ] || continue
+      [ $((8#$java_mode & 0002)) -eq 0 ] || continue
       ;;
   esac
   java_line=$("$java_candidate" -version 2>&1 | sed -n '1p') || continue
