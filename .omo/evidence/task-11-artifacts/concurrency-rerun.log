@@ -1,0 +1,189 @@
+Initialized native services in: <USER_HOME>/.gradle/native
+Initialized jansi services in: <USER_HOME>/.gradle/native
+The client will now receive all logging from the daemon (pid: <REDACTED>). The daemon log file: <USER_HOME>/.gradle/daemon/9.7.1/daemon-67980.out.log
+Starting 7th build in daemon [uptime: 2 mins 43.094 secs, performance: 100%, GC rate: 0.00/s, heap usage: 4% of 512 MiB, non-heap usage: 19% of 384 MiB]
+Using 15 worker leases.
+Operational build model parameters: {cachingModelBuilding=false, configurationCache=false, configurationCacheDisabledReason=null, configurationCacheParallelLoad=false, configurationCacheParallelStore=false, configureOnDemand=false, invalidateCoupledProjects=false, isolatedProjects=false, isolatedProjectsDiagnostics=false, isolatedProjectsDangerouslyIgnoreProblems=false, modelAsProjectDependency=false, modelBuilding=false, parallelModelBuilding=false, parallelProjectConfiguration=false, parallelProjectExecution=false, vintage=true}
+Now considering [<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration, <USER_HOME>/Projects/unithon26-24/.worktrees/test-impl-t08-test-harness] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file '<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/settings.gradle'.
+Projects loaded. Root project using build file '<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build.gradle'.
+Included projects: [root project 'uniton-backend']
+
+> Configure project :
+Evaluating root project 'uniton-backend' using build file '<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build.gradle'.
+Resolved plugin [id: 'java']
+Resolved plugin [id: 'org.springframework.boot', version: '3.5.16']
+Resolved plugin [id: 'io.spring.dependency-management', version: '1.1.7']
+Applying dependency management to configuration 'annotationProcessor' in project 'uniton-backend'
+Applying dependency management to configuration 'apiElements' in project 'uniton-backend'
+Applying dependency management to configuration 'archives' in project 'uniton-backend'
+Applying dependency management to configuration 'bootArchives' in project 'uniton-backend'
+Applying dependency management to configuration 'compileClasspath' in project 'uniton-backend'
+Applying dependency management to configuration 'compileOnly' in project 'uniton-backend'
+Applying dependency management to configuration 'default' in project 'uniton-backend'
+Applying dependency management to configuration 'developmentOnly' in project 'uniton-backend'
+Applying dependency management to configuration 'implementation' in project 'uniton-backend'
+Applying dependency management to configuration 'mainSourceElements' in project 'uniton-backend'
+Applying dependency management to configuration 'productionRuntimeClasspath' in project 'uniton-backend'
+Applying dependency management to configuration 'runtimeClasspath' in project 'uniton-backend'
+Applying dependency management to configuration 'runtimeElements' in project 'uniton-backend'
+Applying dependency management to configuration 'runtimeOnly' in project 'uniton-backend'
+Applying dependency management to configuration 'testAndDevelopmentOnly' in project 'uniton-backend'
+Applying dependency management to configuration 'testAnnotationProcessor' in project 'uniton-backend'
+Applying dependency management to configuration 'testCompileClasspath' in project 'uniton-backend'
+Applying dependency management to configuration 'testCompileOnly' in project 'uniton-backend'
+Applying dependency management to configuration 'testImplementation' in project 'uniton-backend'
+Applying dependency management to configuration 'testResultsElementsForTest' in project 'uniton-backend'
+Applying dependency management to configuration 'testRuntimeClasspath' in project 'uniton-backend'
+Applying dependency management to configuration 'testRuntimeOnly' in project 'uniton-backend'
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Starting process 'command '/usr/libexec/java_home''. Working directory: <USER_HOME>/.gradle/daemon/9.7.1 Command: /usr/libexec/java_home -V
+Successfully started process 'command '/usr/libexec/java_home''
+Resolving global dependency management for project 'uniton-backend'
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Excluding []
+Tasks to be executed: [task ':compileJava', task ':processResources', task ':classes', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :compileJava (Thread[#435,Execution worker,5,main]) started.
+:compileJava (Thread[#435,Execution worker,5,main]) started.
+
+> Task :compileJava
+Custom actions are attached to task ':compileJava'.
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Task ':compileJava' is not up-to-date because:
+  Executed with '--rerun-tasks'.
+The input changes require a full rebuild for incremental task ':compileJava'.
+Compilation mode: in-process compilation
+Full recompilation is required because no incremental change information is available. This is usually caused by clean builds or changing compiler arguments.
+Compiling with toolchain '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home'.
+Compiling with JDK Java compiler API.
+Class dependency analysis for incremental compilation took 0.001 secs.
+Created classpath snapshot for incremental compilation in 0.003 secs.
+Resolve mutations for :processResources (Thread[#435,Execution worker,5,main]) started.
+:processResources (Thread[#435,Execution worker,5,main]) started.
+
+> Task :processResources
+Caching disabled for task ':processResources' because:
+  Build cache is disabled
+  Not worth caching
+Task ':processResources' is not up-to-date because:
+  Executed with '--rerun-tasks'.
+Resolve mutations for :classes (Thread[#435,Execution worker,5,main]) started.
+:classes (Thread[#435,Execution worker,5,main]) started.
+
+> Task :classes
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :compileTestJava (Thread[#435,Execution worker,5,main]) started.
+:compileTestJava (Thread[#435,Execution worker,5,main]) started.
+
+> Task :compileTestJava
+Custom actions are attached to task ':compileTestJava'.
+Caching disabled for task ':compileTestJava' because:
+  Build cache is disabled
+Task ':compileTestJava' is not up-to-date because:
+  Executed with '--rerun-tasks'.
+The input changes require a full rebuild for incremental task ':compileTestJava'.
+Compilation mode: in-process compilation
+Full recompilation is required because no incremental change information is available. This is usually caused by clean builds or changing compiler arguments.
+Compiling with toolchain '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home'.
+Compiling with JDK Java compiler API.
+Class dependency analysis for incremental compilation took 0.001 secs.
+Created classpath snapshot for incremental compilation in 0.007 secs.
+Resolve mutations for :processTestResources (Thread[#435,Execution worker,5,main]) started.
+:processTestResources (Thread[#435,Execution worker,5,main]) started.
+
+> Task :processTestResources NO-SOURCE
+Skipping task ':processTestResources' as it has no source files and no previous output files.
+Resolve mutations for :testClasses (Thread[#435,Execution worker,5,main]) started.
+:testClasses (Thread[#435,Execution worker,5,main]) started.
+
+> Task :testClasses
+Skipping task ':testClasses' as it has no actions.
+Resolve mutations for :test (Thread[#435,Execution worker,5,main]) started.
+:test (Thread[#435,Execution worker,5,main]) started.
+Gradle Test Executor 7 started executing tests.
+
+> Task :test
+Caching disabled for task ':test' because:
+  Build cache is disabled
+Task ':test' is not up-to-date because:
+  Executed with '--rerun-tasks'.
+Starting process 'Gradle Test Executor 7'. Working directory: <USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration Command: /Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java -Dorg.gradle.internal.worker.tmpdir=<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build/tmp/test/work @<USER_HOME>/.gradle/.tmp/gradle-worker-classpath15679076441282089759txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=KR -Duser.language=ko -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 7'
+Successfully started process 'Gradle Test Executor 7'
+
+PlanDraftApprovalMigrationTest STANDARD_OUT
+    14:25:39.500 [Test worker] INFO org.testcontainers.images.PullPolicy -- Image pull policy will be performed by: DefaultPullPolicy()
+    14:25:39.502 [Test worker] INFO org.testcontainers.utility.ImageNameSubstitutor -- Image name substitution will be performed by: DefaultImageNameSubstitutor (composite of 'ConfigurationFileImageNameSubstitutor' and 'PrefixingImageNameSubstitutor')
+    14:25:39.505 [Test worker] INFO org.testcontainers.DockerClientFactory -- Testcontainers version: 1.21.4
+    14:25:39.582 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Loaded org.testcontainers.dockerclient.UnixSocketClientProviderStrategy from ~/.testcontainers.properties, will try it first
+    14:25:39.710 [Test worker] INFO org.testcontainers.dockerclient.DockerClientProviderStrategy -- Found Docker environment with local Unix socket (unix:///var/run/docker.sock)
+    14:25:39.710 [Test worker] INFO org.testcontainers.DockerClientFactory -- Docker host IP address is localhost
+    14:25:39.722 [Test worker] INFO org.testcontainers.DockerClientFactory -- Connected to docker:
+      Server Version: 29.4.0
+      API Version: 1.54
+      Operating System: OrbStack
+      Total Memory: 12015 MB
+    14:25:40.207 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Creating container for image: testcontainers/ryuk:0.12.0
+    14:25:40.238 [Test worker] INFO org.testcontainers.utility.RegistryAuthLocator -- Credential helper/store (docker-credential-osxkeychain) does not have credentials for https://index.docker.io/v1/
+    14:25:40.348 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 is starting: <REDACTED>
+    14:25:40.584 [Test worker] INFO tc.testcontainers/ryuk:0.12.0 -- Container testcontainers/ryuk:0.12.0 started in PT0.377286S
+    14:25:40.588 [Test worker] INFO org.testcontainers.utility.RyukResourceReaper -- Ryuk started - will monitor and terminate Testcontainers containers on JVM exit
+    14:25:40.588 [Test worker] INFO org.testcontainers.DockerClientFactory -- Checking the system...
+    14:25:40.588 [Test worker] INFO org.testcontainers.DockerClientFactory -- ✔︎ Docker server version should be at least 1.6.0
+    14:25:40.588 [Test worker] INFO tc.postgres:16-alpine -- Creating container for image: postgres:16-alpine
+    14:25:40.660 [Test worker] INFO tc.postgres:16-alpine -- Container postgres:16-alpine is starting: <REDACTED>
+    14:25:43.638 [Test worker] INFO tc.postgres:16-alpine -- Container postgres:16-alpine started in PT3.049549S
+    14:25:43.639 [Test worker] INFO tc.postgres:16-alpine -- Container is started (JDBC URL: jdbc:postgresql://localhost:33939/test?loggerLevel=OFF)
+
+PlanDraftApprovalMigrationTest > concurrentApplyRejectsApprovalForRevisionItSupersedes() STANDARD_OUT
+    14:25:43.851 [Test worker] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:33939/test?loggerLevel=OFF (PostgreSQL 16.14)
+    14:25:43.866 [Test worker] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+    14:25:43.867 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully dropped pre-schema database level objects (execution time 00:00.000s)
+    14:25:43.877 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully cleaned schema "public" (execution time 00:00.009s)
+    14:25:43.883 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully cleaned schema "public" (execution time 00:00.005s)
+    14:25:43.883 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully dropped post-schema database level objects (execution time 00:00.000s)
+    14:25:43.924 [Test worker] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+    14:25:43.925 [Test worker] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 2 migrations (execution time 00:00.007s)
+    14:25:43.931 [Test worker] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+    14:25:43.964 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+    14:25:43.976 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "001 - foundation"
+    14:25:44.025 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "002 - plan draft hierarchy"
+    14:25:44.073 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 2 migrations to schema "public", now at version v002 (execution time 00:00.076s)
+    DATA_SURFACE concurrent_apply_revision=2 stale_approval_revision=1 committed=false
+
+PlanDraftApprovalMigrationTest > concurrentDuplicateScopeProducesOneDurableApproval() STANDARD_OUT
+    14:25:44.196 [Test worker] INFO org.flywaydb.core.FlywayExecutor -- Database: jdbc:postgresql://localhost:33939/test?loggerLevel=OFF (PostgreSQL 16.14)
+    14:25:44.203 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully dropped pre-schema database level objects (execution time 00:00.000s)
+    14:25:44.287 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully cleaned schema "public" (execution time 00:00.082s)
+    14:25:44.292 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully cleaned schema "public" (execution time 00:00.005s)
+    14:25:44.292 [Test worker] INFO org.flywaydb.core.internal.command.clean.CleanExecutor -- Successfully dropped post-schema database level objects (execution time 00:00.000s)
+    14:25:44.311 [Test worker] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Schema history table "public"."flyway_schema_history" does not exist yet
+    14:25:44.312 [Test worker] INFO org.flywaydb.core.internal.command.DbValidate -- Successfully validated 2 migrations (execution time 00:00.002s)
+    14:25:44.316 [Test worker] INFO org.flywaydb.core.internal.schemahistory.JdbcTableSchemaHistory -- Creating Schema History table "public"."flyway_schema_history" ...
+    14:25:44.328 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Current version of schema "public": << Empty Schema >>
+    14:25:44.332 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "001 - foundation"
+    14:25:44.372 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Migrating schema "public" to version "002 - plan draft hierarchy"
+    14:25:44.424 [Test worker] INFO org.flywaydb.core.internal.command.DbMigrate -- Successfully applied 2 migrations to schema "public", now at version v002 (execution time 00:00.080s)
+    DATA_SURFACE concurrent_approval_writers=2 durable_scope_records=1
+
+Gradle Test Executor 7 finished executing tests.
+
+> Task :test
+Generating HTML test report...
+Finished generating test html results (0.003 secs) into: <USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build/reports/tests/test
+Finished generating test XML results (0.001 secs) into: <USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build/test-results/test
+
+BUILD SUCCESSFUL in 6s
+4 actionable tasks: 4 executed
+Watched directory hierarchies: [<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration, <USER_HOME>/Projects/unithon26-24/.worktrees/test-impl-t08-test-harness]
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
