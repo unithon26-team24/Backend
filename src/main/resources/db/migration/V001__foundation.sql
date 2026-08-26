@@ -91,6 +91,39 @@ AFTER INSERT OR UPDATE OF owner_member_id ON projects
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION foundation_validate_owner_role();
 
+CREATE FUNCTION foundation_validate_member_owner_role()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    checked_project_id uuid;
+BEGIN
+    IF TG_OP = 'DELETE' THEN
+        checked_project_id := OLD.project_id;
+    ELSE
+        checked_project_id := NEW.project_id;
+    END IF;
+    IF EXISTS (SELECT 1 FROM projects WHERE id = checked_project_id)
+        AND NOT EXISTS (
+            SELECT 1
+            FROM projects p
+            JOIN project_members pm
+              ON pm.project_id = p.id
+             AND pm.id = p.owner_member_id
+             AND pm.member_role = 'owner'
+            WHERE p.id = checked_project_id
+        ) THEN
+        RAISE EXCEPTION 'project must retain exactly one owner member';
+    END IF;
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+CREATE CONSTRAINT TRIGGER project_members_validate_owner_role
+AFTER UPDATE OR DELETE ON project_members
+DEFERRABLE INITIALLY DEFERRED
+FOR EACH ROW EXECUTE FUNCTION foundation_validate_member_owner_role();
+
 CREATE TABLE project_parts (
     id uuid PRIMARY KEY,
     project_id uuid NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

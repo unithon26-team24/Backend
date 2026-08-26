@@ -2,6 +2,7 @@ package com.uniton.backend.persistence;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Savepoint;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -59,20 +60,45 @@ public final class ProjectRepository {
     }
 
     public void addPart(UUID projectId, UUID partId, String name, UUID leadMemberId) throws SQLException {
-        try (var part = connection.prepareStatement(
-                        "INSERT INTO project_parts (id, project_id, name) VALUES (?, ?, ?)");
-                var membership = connection.prepareStatement("""
-                        INSERT INTO project_part_memberships (project_id, part_id, member_id, part_role)
-                        VALUES (?, ?, ?, 'part_lead')
-                        """)) {
-            part.setObject(1, partId);
-            part.setObject(2, projectId);
-            part.setString(3, name);
-            part.executeUpdate();
-            membership.setObject(1, projectId);
-            membership.setObject(2, partId);
-            membership.setObject(3, leadMemberId);
-            membership.executeUpdate();
+        boolean autoCommit = connection.getAutoCommit();
+        Savepoint savepoint = null;
+        if (autoCommit) {
+            connection.setAutoCommit(false);
+        } else {
+            savepoint = connection.setSavepoint();
+        }
+        try {
+            try (var part = connection.prepareStatement(
+                            "INSERT INTO project_parts (id, project_id, name) VALUES (?, ?, ?)");
+                    var membership = connection.prepareStatement("""
+                            INSERT INTO project_part_memberships (project_id, part_id, member_id, part_role)
+                            VALUES (?, ?, ?, 'part_lead')
+                            """)) {
+                part.setObject(1, partId);
+                part.setObject(2, projectId);
+                part.setString(3, name);
+                part.executeUpdate();
+                membership.setObject(1, projectId);
+                membership.setObject(2, partId);
+                membership.setObject(3, leadMemberId);
+                membership.executeUpdate();
+            }
+            if (autoCommit) {
+                connection.commit();
+            } else {
+                connection.releaseSavepoint(savepoint);
+            }
+        } catch (SQLException exception) {
+            if (autoCommit) {
+                connection.rollback();
+            } else {
+                connection.rollback(savepoint);
+            }
+            throw exception;
+        } finally {
+            if (autoCommit) {
+                connection.setAutoCommit(true);
+            }
         }
     }
 

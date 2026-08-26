@@ -13,7 +13,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,14 +60,23 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
 
         // When
         try (var executor = Executors.newFixedThreadPool(2)) {
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch start = new CountDownLatch(1);
             Callable<Integer> claim = () -> {
+                ready.countDown();
+                if (!start.await(5, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("claimers did not reach the start barrier");
+                }
                 try (Connection connection = connection()) {
                     return new AutomationJobRepository(connection).claimNext("worker-" + UUID.randomUUID())
                             .isPresent() ? 1 : 0;
                 }
             };
-            var claims = executor.invokeAll(List.of(claim, claim));
-            int winners = claims.get(0).get() + claims.get(1).get();
+            var firstClaim = executor.submit(claim);
+            var secondClaim = executor.submit(claim);
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            int winners = firstClaim.get() + secondClaim.get();
 
             // Then
             assertThat(winners).isEqualTo(1);
@@ -106,9 +117,13 @@ class AutomationJobRepositoryTest extends PostgresIntegrationSupport {
                     Instant.now().minusSeconds(600), Duration.ofMinutes(5)));
             assertThat(jobs.claimNext("first-worker")).isPresent();
             try (var expire = connection.prepareStatement("""
+                    WITH stale_at AS (
+                        SELECT clock_timestamp() AS value
+                    )
                     UPDATE automation_jobs
-                    SET leased_at = clock_timestamp() - interval '91 seconds',
-                        lease_expires_at = clock_timestamp() - interval '1 second'
+                    SET leased_at = stale_at.value - interval '91 seconds',
+                        lease_expires_at = stale_at.value - interval '1 second'
+                    FROM stale_at
                     """)) {
                 expire.executeUpdate();
             }

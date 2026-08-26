@@ -129,12 +129,92 @@ class FoundationMigrationTest extends PostgresIntegrationSupport {
         System.out.println("DATA_SURFACE mismatched_resource_reference=rejected");
     }
 
+    @Test
+    void failedPartLeadMembershipDoesNotLeavePart() throws SQLException {
+        // Given
+        UUID projectId = UUID.randomUUID();
+        repository.createProject(new ProjectRepository.ProjectSetup(
+                projectId, "Project", "Goal", Instant.now(), "UTC", UUID.randomUUID(),
+                "U1", "Owner", List.of("기획")));
+
+        // When / Then
+        try (Connection transactionConnection = connection()) {
+            ProjectRepository transactionalRepository = new ProjectRepository(transactionConnection);
+            assertThatThrownBy(() -> transactionalRepository.addPart(
+                            projectId, UUID.randomUUID(), "Orphan candidate", UUID.randomUUID()))
+                    .isInstanceOf(SQLException.class);
+            assertThat(transactionConnection.getAutoCommit()).isTrue();
+        }
+        assertThat(partCount()).isZero();
+        System.out.println("DATA_SURFACE failed_part_lead_membership leaked_parts=0 auto_commit=restored");
+    }
+
+    @Test
+    void soleOwnerCannotBeDemotedOrDeleted() throws SQLException {
+        // Given
+        UUID projectId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        repository.createProject(new ProjectRepository.ProjectSetup(
+                projectId, "Project", "Goal", Instant.now(), "UTC", ownerId,
+                "U1", "Owner", List.of("기획")));
+
+        // When / Then
+        try (Connection connection = connection()) {
+            assertThatThrownBy(() -> updateMemberRole(connection, ownerId, "member"))
+                    .isInstanceOf(SQLException.class);
+            assertThatThrownBy(() -> deleteMember(connection, ownerId))
+                    .isInstanceOf(SQLException.class);
+        }
+        assertThat(ownerCount(projectId)).isEqualTo(1);
+        System.out.println("DATA_SURFACE sole_owner_demotion=rejected sole_owner_delete=rejected owners=1");
+    }
+
     private int projectCount() throws SQLException {
         try (Connection connection = connection();
                 var statement = connection.createStatement();
                 var rows = statement.executeQuery("SELECT count(*) FROM projects")) {
             rows.next();
             return rows.getInt(1);
+        }
+    }
+
+    private int partCount() throws SQLException {
+        try (Connection connection = connection();
+                var statement = connection.createStatement();
+                var rows = statement.executeQuery("SELECT count(*) FROM project_parts")) {
+            rows.next();
+            return rows.getInt(1);
+        }
+    }
+
+    private void updateMemberRole(Connection connection, UUID memberId, String role) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                "UPDATE project_members SET member_role = ? WHERE id = ?")) {
+            statement.setString(1, role);
+            statement.setObject(2, memberId);
+            statement.executeUpdate();
+        }
+    }
+
+    private void deleteMember(Connection connection, UUID memberId) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                "DELETE FROM project_members WHERE id = ?")) {
+            statement.setObject(1, memberId);
+            statement.executeUpdate();
+        }
+    }
+
+    private int ownerCount(UUID projectId) throws SQLException {
+        try (Connection connection = connection();
+                var statement = connection.prepareStatement("""
+                        SELECT count(*) FROM project_members
+                        WHERE project_id = ? AND member_role = 'owner'
+                        """)) {
+            statement.setObject(1, projectId);
+            try (var rows = statement.executeQuery()) {
+                rows.next();
+                return rows.getInt(1);
+            }
         }
     }
 }
