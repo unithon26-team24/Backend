@@ -1,0 +1,28 @@
+Starting a Gradle Daemon, 1 busy Daemon could not be reused, use --status for details
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+
+> Task :test
+
+TemplateOwnerSelectionMigrationTest > rejectsMalformedTemplateWithoutPartialRevision() FAILED
+    org.opentest4j.AssertionFailedError at TemplateOwnerSelectionMigrationTest.java:90
+
+1 test completed, 1 failed
+
+> Task :test FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file://<USER_HOME>/Projects/unithon26-24/.worktrees/feat-impl-t11-draft-hierarchy-migration/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 10s
+4 actionable tasks: 2 executed, 2 up-to-date
